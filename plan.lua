@@ -22,7 +22,7 @@ public class-methods
 - get_all()       - get a plan list
 - save_all()      - write plan definitions to files in world
 - load_all()      - read all plan definitions from files in world
-- remove(plan_id) - remove a plan from world 
+- remove(plan_id) - remove a plan from world
 
 public object methods
 - add_node(plan_pos, plan_node)  - add a node to plan   (WIP) - "nodenames" handling is missed
@@ -33,18 +33,12 @@ public object methods
 - get_chunk_nodes(plan_pos)      - get a list of all nodes from chunk of a pos (OK)
 
 - read_from_schem_file(file)     - read from WorldEdit or mts file (OK)
-- get_status()                   - get status (low-prio)
-- set_status(status)             - set status (low-prio)
-- set_type(plan_type)            - set type (low-prio)
-- get_type(plan_type)            - get type (low-prio)
-- set_anchor_pos(world_pos)      - set the world position the plan should be applied anchor at 0,0,0 in plan (low-prio)
-- get_anchor_pos()               - get the world position the plan should be applied anchor at 0,0,0 in plan (low-prio)
-
 - get_world_pos(plan_pos)        - get a world position for a plan position (OK)
 - get_plan_pos(world_pos)        - get a plan position for a world position (OK)
 - get_buildable_node(plan_pos)   - get a plan node ready to build (OK)
 - load_plan()                    - load a plan state from file in world-directory (low-prio) (:scm_data_cache)
 - save_plan()                    - store the current plan to a file in world directory and set them valid (low-prio) (:scm_data_cache)
+- change_plan_id(new_plan_id)    - change the plan id
 - apply_flood_with_air
      (add_max, add_min, add_top) - Fill a building with air (OK)
 - do_add_node(buildable_node)    - Place node to world using "add_node" and remove them from plan (OK)
@@ -171,7 +165,17 @@ plan.new = function( plan_id , anchor_pos)
 		end
 	end
 
-	function self.apply_flood_with_air(add_max, add_min, add_top)
+	function self.change_plan_id(self, new_plan_id)
+		if self.plan_id then
+			plan.plan_list[self.plan_id ] = nil
+		end
+		self.plan_id = new_plan_id
+		if self.plan_id then
+			plan.plan_list[self.plan_id ] = self
+		end
+	end
+
+	function self.apply_flood_with_air(self, add_max, add_min, add_top)
 		self.data.ground_y =  math.floor(self.data.ground_y)
 		if add_max == nil then
 			add_max = 3
