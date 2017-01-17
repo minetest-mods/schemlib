@@ -22,7 +22,6 @@ public class-methods
 - get_all()       - get a plan list
 - save_all()      - write plan definitions to files in world
 - load_all()      - read all plan definitions from files in world
-- remove(plan_id) - remove a plan from world
 
 public object methods
 - add_node(plan_pos, plan_node)  - add a node to plan   (WIP) - "nodenames" handling is missed
@@ -38,6 +37,7 @@ public object methods
 - get_buildable_node(plan_pos)   - get a plan node ready to build (OK)
 - load_plan()                    - load a plan state from file in world-directory (low-prio) (:scm_data_cache)
 - save_plan()                    - store the current plan to a file in world directory and set them valid (low-prio) (:scm_data_cache)
+- delete_plan()                  - remove the plan from plan_list
 - change_plan_id(new_plan_id)    - change the plan id
 - apply_flood_with_air
      (add_max, add_min, add_top) - Fill a building with air (OK)
@@ -68,8 +68,8 @@ private object atributes
 ]]
 
 -- debug-print
-local dprint = print
---local dprint = function dummy()
+--local dprint = print
+local dprint = function() return end
 
 
 local mapping = schemlib.mapping
@@ -165,16 +165,6 @@ plan.new = function( plan_id , anchor_pos)
 		end
 	end
 
-	function self.change_plan_id(self, new_plan_id)
-		if self.plan_id then
-			plan.plan_list[self.plan_id ] = nil
-		end
-		self.plan_id = new_plan_id
-		if self.plan_id then
-			plan.plan_list[self.plan_id ] = self
-		end
-	end
-
 	function self.apply_flood_with_air(self, add_max, add_min, add_top)
 		self.data.ground_y =  math.floor(self.data.ground_y)
 		if add_max == nil then
@@ -207,7 +197,7 @@ plan.new = function( plan_id , anchor_pos)
 			for x = self.data.min_pos.x - add_min, self.data.max_pos.x + add_min do
 				for z = self.data.min_pos.z - add_min, self.data.max_pos.z + add_min do
 					local airnode = {x=x, y=y, z=z, name_id=air_id}
-					if self:get_scm_node(airnode) == nil then
+					if self:get_node(airnode) == nil then
 						self:add_node(airnode)
 					end
 				end
@@ -217,17 +207,16 @@ plan.new = function( plan_id , anchor_pos)
 	end
 
 	function self.get_world_pos(self,pos)
-		return {	x=pos.x+self.chest.pos.x,
-						y=pos.y+self.chest.pos.y - self.data.ground_y - 1,
-						z=pos.z+self.chest.pos.z
+		return {	x=pos.x+self.anchor_pos.x,
+						y=pos.y+self.anchor_pos.y - self.data.ground_y - 1,
+						z=pos.z+self.anchor_pos.z
 					}
 	end
 
-	-- revert get_world_pos
 	function self.get_plan_pos(self,pos)
-		return {	x=pos.x-self.chest.pos.x,
-						y=pos.y-self.chest.pos.y + self.data.ground_y + 1,
-						z=pos.z-self.chest.pos.z
+		return {	x=pos.x-self.anchor_pos.x,
+						y=pos.y-self.anchor_pos.y + self.data.ground_y + 1,
+						z=pos.z-self.anchor_pos.z
 					}
 	end
 
@@ -287,7 +276,7 @@ plan.new = function( plan_id , anchor_pos)
 							if self.data.scm_data_cache[y][x][z] ~= nil then
 								local pos = {x=x,y=y,z=z}
 								local wpos = self:get_world_pos(pos)
-								table.insert(ret, {pos = pos, wpos = wpos, node=self:get_buildable_node(pos, wpos)})
+								table.insert(ret, self:get_buildable_node(pos, wpos))
 							end
 						end
 					end
@@ -317,7 +306,7 @@ plan.new = function( plan_id , anchor_pos)
 
 
 	-- prepare node for build
-	function self.get_buildable_node(self, pos, wpos)
+	function self.get_buildable_node(self, plan_pos, world_pos)
 		-- first run, generate mapping data
 		if self.data.mappednodes == nil then
 			mapping.do_mapping(self.data)
@@ -325,14 +314,14 @@ plan.new = function( plan_id , anchor_pos)
 
 		-- get from cache
 		if self.data.prepared_cache ~= nil and
-				self.data.prepared_cache[pos.y] ~= nil and
-				self.data.prepared_cache[pos.y][pos.x] ~= nil and
-				self.data.prepared_cache[pos.y][pos.x][pos.z] ~= nil then
-			return self.data.prepared_cache[pos.y][pos.x][pos.z]
+				self.data.prepared_cache[plan_pos.y] ~= nil and
+				self.data.prepared_cache[plan_pos.y][plan_pos.x] ~= nil and
+				self.data.prepared_cache[plan_pos.y][plan_pos.x][plan_pos.z] ~= nil then
+			return self.data.prepared_cache[plan_pos.y][plan_pos.x][plan_pos.z]
 		end
 
 		-- get scm data
-		local scm_node = self:get_node(pos)
+		local scm_node = self:get_node(plan_pos)
 		if scm_node == nil then
 			return nil
 		end
@@ -346,36 +335,55 @@ plan.new = function( plan_id , anchor_pos)
 		local node = mapping.merge_map_entry(map, scm_node)
 
 		if node.custom_function ~= nil then
-			node.custom_function(node, pos, wpos)
+			node.custom_function(node, plan_pos, world_pos)
 		end
 
 		-- maybe node name is changed in custom function. Update the content_id in this case
 		node.content_id = minetest.get_content_id(node.name)
 		node.node_def = minetest.registered_nodes[node.name]
+		node.plan_pos = plan_pos
+		node.world_pos = world_pos
 
 		-- store the mapped node info in cache
 		if self.data.prepared_cache == nil then
 			self.data.prepared_cache = {}
 		end
-		if self.data.prepared_cache[pos.y] == nil then
-			self.data.prepared_cache[pos.y] = {}
+		if self.data.prepared_cache[plan_pos.y] == nil then
+			self.data.prepared_cache[plan_pos.y] = {}
 		end
-		if self.data.prepared_cache[pos.y][pos.x] == nil then
-			self.data.prepared_cache[pos.y][pos.x] = {}
+		if self.data.prepared_cache[plan_pos.y][plan_pos.x] == nil then
+			self.data.prepared_cache[plan_pos.y][plan_pos.x] = {}
 		end
-		self.data.prepared_cache[pos.y][pos.x][pos.z] = node
+		self.data.prepared_cache[plan_pos.y][plan_pos.x][plan_pos.z] = node
 
 		return node
 	end
 
+
+	function self.change_plan_id(self, new_plan_id)
+		if self.plan_id then
+			plan.plan_list[self.plan_id ] = nil
+		end
+		self.plan_id = new_plan_id
+		if self.plan_id then
+			plan.plan_list[self.plan_id ] = self
+		end
+	end
+
+	function self.delete_plan(self)
+		if self.plan_id then
+			plan.plan_list[self.plan_id ] = nil
+		end
+	end
+
 	function self.do_add_node(self, buildable_node)
 		if buildable_node.node then
-			minetest.env:add_node(buildable_node.wpos, buildable_node.node)
+			minetest.env:add_node(buildable_node.world_pos, buildable_node.node)
 			if buildable_node.node.meta then
-				minetest.env:get_meta(buildable_node.wpos):from_table(buildable_node.node.meta)
+				minetest.env:get_meta(buildable_node.world_pos):from_table(buildable_node.node.meta)
 			end
 		end
-		self:del_node(buildable_node.pos)
+		self:del_node(buildable_node.plan_pos)
 	end
 
 	function self.do_add_chunk(self, plan_pos)
@@ -416,10 +424,10 @@ plan.new = function( plan_id , anchor_pos)
 				-- mark for light update
 				assert(node.node_def, dump(node))
 				if node.node_def.light_source and node.node_def.light_source > 0 then
-					table.insert(light_fix, {pos = wpos, node = node})
+					table.insert(light_fix, node)
 				end
 				if node.meta then
-					table.insert(meta_fix, {pos = wpos, node = node})
+					table.insert(meta_fix, node)
 				end
 				self.plan:remove_node(node)
 			end
@@ -437,12 +445,12 @@ plan.new = function( plan_id , anchor_pos)
 		-- fix the lights
 		dprint("fix lights", #light_fix)
 		for _, fix in ipairs(light_fix) do
-			minetest.env:add_node(fix.pos, fix.node)
+			minetest.env:add_node(fix.world_pos, fix)
 		end
 
 		dprint("process meta", #meta_fix)
 		for _, fix in ipairs(meta_fix) do
-			minetest.env:get_meta(fix.pos):from_table(fix.node.meta)
+			minetest.env:get_meta(fix.world_pos):from_table(fix.meta)
 		end
 	end
 

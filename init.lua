@@ -11,6 +11,7 @@ schemlib.save_restore = dofile(modpath.."/save_restore.lua")
 schemlib.schematics = dofile(modpath.."/schematics.lua")
 schemlib.world = dofile(modpath.."/world.lua")
 schemlib.plan = dofile(modpath.."/plan.lua")
+schemlib.npc_ai = dofile(modpath.."/npc_ai.lua")
 
 -- log that we started
 minetest.log("action", "[MOD]"..minetest.get_current_modname().." -- loaded from "..modpath)
