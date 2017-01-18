@@ -34,7 +34,7 @@ schematics.analyze_mts_file = function(file)
 
 -- taken from https://github.com/MirceaKitsune/minetest_mods_structures/blob/master/structures_io.lua (Taokis Sructures I/O mod)
 -- gets the size of a structure file
--- nodenames: contains all the node names that are used in the schematic
+-- nodeinfos: contains all the node names that are used in the schematic with count of occurence ({name_orig="abc:dcg",count=1})
 
 	local size = { x = 0, y = 0, z = 0, version = 0 }
 	local version = 0;
@@ -64,7 +64,7 @@ schematics.analyze_mts_file = function(file)
 	end
 
 	-- this list is not yet used for anything
-	local nodenames = {}
+	local nodeinfos = {}
 	local ground_id = {}
 	local is_air = 0
 
@@ -76,7 +76,7 @@ schematics.analyze_mts_file = function(file)
 		local name_length = read_s16( file )
 		-- the text of the next name
 		local name_text = file:read( name_length )
-		nodenames[i] = name_text
+		nodeinfos[i] = { name_orig = name_text, count = 0 }
 		if string.sub(name_text, 1, 18) == "default:dirt_with_" or
 				name_text == "farming:soil_wet" then
 			ground_id[i] = true
@@ -122,6 +122,7 @@ schematics.analyze_mts_file = function(file)
 					end
 					scm[y][x][z] = {name_id = id, param2 = p2};
 					nodecount = nodecount + 1
+					nodeinfos[id].count = nodeinfos[id].count + 1
 
 					-- adjust position information
 					if not max_pos.x or x > max_pos.x then
@@ -159,7 +160,7 @@ schematics.analyze_mts_file = function(file)
 
 	return {	min_pos   = min_pos,    -- minimal {x,y,z} vector
 				max_pos   = max_pos,    -- maximal {x,y,z} vector
-				nodenames = nodenames,  -- nodenames[1] = "default:sample"
+				nodeinfos = nodeinfos,  -- nodeinfos[1] = {name_orig="abc:dcg",count=1}
 				scm_data_cache = scm,   -- scm[y][x][z] = { name_id, ent.param2 }
 				nodecount = nodecount,  -- integer, count
 				ground_y  = ground_y }  -- average ground high
@@ -168,7 +169,7 @@ end
 
 schematics.analyze_we_file = function(file)
 	-- returning parameters
-	local nodenames = {}
+	local nodeinfos = {}
 	local scm = {}
 	local all_meta = {}
 	local min_pos = {}
@@ -178,22 +179,24 @@ schematics.analyze_we_file = function(file)
 
 	-- helper
 	local nodes = schemlib.worldedit_file.load_schematic(file:read("*a"))
-	local nodenames_id = {}
+	local nodeinfos_id = {}
 	local ground_id = {}
 	local groundnode_count = 0
 
 	-- analyze the file
 	for i, ent in ipairs( nodes ) do
 		-- get nodename_id and analyze ground elements
-		local name_id = nodenames_id[ent.name]
+		local name_id = nodeinfos_id[ent.name]
 		if not name_id then
-			name_id = #nodenames + 1
-			nodenames_id[ent.name] = name_id
-			nodenames[name_id] = ent.name
+			name_id = #nodeinfos + 1
+			nodeinfos_id[ent.name] = name_id
+			nodeinfos[name_id] = { name_orig = ent.name, count = 1 }
 			if string.sub(ent.name, 1, 18) == "default:dirt_with_" or
 					ent.name == "farming:soil_wet" then
 				ground_id[name_id] = true
 			end
+		else
+			nodeinfos[name_id].count = nodeinfos[name_id].count + 1
 		end
 
 		-- calculate ground_y value
@@ -262,7 +265,7 @@ schematics.analyze_we_file = function(file)
 
 	return {	min_pos   = min_pos,    -- minimal {x,y,z} vector
 				max_pos   = max_pos,    -- maximal {x,y,z} vector
-				nodenames = nodenames,  -- nodenames[1] = "default:sample"
+				nodeinfos = nodeinfos,  -- nodeinfos[1] = {name_orig="abc:dcg",count=1}
 				scm_data_cache = scm,   -- scm[y][x][z] = { name_id=, param2=, meta= }
 				nodecount = nodecount,  -- integer, count
 				ground_y  = ground_y }  -- average ground high

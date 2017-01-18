@@ -215,15 +215,11 @@ function mapping.map_name(name)
 		if (mr.node_def.groups.not_in_creative_inventory and --not in creative
 				not (mr.node_def.groups.not_in_creative_inventory == 0) and
 				(not recipe or not recipe.items)) --and not craftable
-
-		 or (not mr.node_def.description or mr.node_def.description == "") then -- no description
-			if mr.node_def.drop and mr.node_def.drop ~= "" then
-			-- use possible drop as payment
-				if type(mr.node_def.drop) == "table" then -- drop table
-					mr.cost_item = mr.node_def.drop[1] -- use the first one
-				else
-					mr.cost_item = mr.node_def.drop
-				end
+				or (not mr.node_def.description or mr.node_def.description == "") then -- no description
+			-- node cannot be used as payment. Check for drops
+			local dropstack = minetest.get_node_drops(mr.name)
+			if dropstack then
+				mr.cost_item = dropstack[1] -- use the first one
 			else --something not supported, but known
 				mr.cost_item = mapping.c_free_item -- will be build for free. they are something like doors:hidden or second part of coffee lrfurn:coffeetable_back
 			end
@@ -238,12 +234,13 @@ function mapping.map_name(name)
 end
 
 -----------------------------------------------
--- create a "mappednodes" using the data from analyze_* files
+-- create a "mappedinfo" using the data from analyze_* files
 -----------------------------------------------
 function mapping.do_mapping(data)
-	data.mappednodes = {}
-	for node_id, name in ipairs(data.nodenames) do
-		data.mappednodes[node_id] = mapping.map_name(name)
+	data.mappedinfo = {}
+	for name_id, nodeinfo in ipairs(data.nodeinfos) do
+		dprint("start mapping for", dump(nodeinfo))
+		data.mappedinfo[name_id] = mapping.map_name(nodeinfo.name_orig)
 	end
 end
 

@@ -24,7 +24,7 @@ public class-methods
 - load_all()      - read all plan definitions from files in world
 
 public object methods
-- add_node(plan_pos, plan_node)  - add a node to plan   (WIP) - "nodenames" handling is missed
+- add_node(plan_pos, plan_node)  - add a node to plan   (OK)
 - get_node(plan_pos)             - get a node from plan (OK)
 - del_node(plan_pos)             - delete a node from plan (OK)
 - get_node_next_to_pos(plan_pos) - get the nearest node to pos (low-prio)
@@ -54,7 +54,7 @@ private object atributes
 - plan_id    - a id of the plan (=filename)
 - status     - plan status
 - anchor_pos - position vector in world
-- data.nodenames      - a list of node names for node_id
+- data.nodeinfos      - a list of node information for name_id with counter ({name_orig="abc:dcg",count=1})
 - data.ground_y       - explicit ground adjustment for anchor_pos
 - data.min_pos        - minimal {x,y,z} vector
 - data.max_pos        - maximal {x,y,z} vector
@@ -68,8 +68,8 @@ private object atributes
 ]]
 
 -- debug-print
---local dprint = print
-local dprint = function() return end
+local dprint = print
+--local dprint = function() return end
 
 
 local mapping = schemlib.mapping
@@ -114,7 +114,31 @@ plan.new = function( plan_id , anchor_pos)
 		if self.data.scm_data_cache[node.y][node.x] == nil then
 			self.data.scm_data_cache[node.y][node.x] = {}
 		end
-		self.data.nodecount = self.data.nodecount + 1
+		if self.data.scm_data_cache[node.y][node.x][node.z] == nil then
+			self.data.nodecount = self.data.nodecount + 1
+		else
+			local replaced_node = self.data.scm_data_cache[node.y][node.x][node.z]
+			data.nodeinfos[replaced_node.name_id].count = self.data.nodeinfos[replaced_node.name_id].count-1
+		end
+
+		if not node.name_id then
+			local chk_name_id
+			for name_id, nodeinfo in pairs(self.data.nodeinfos) do
+				if nodeinfo.orig_name == node.name then
+					chk_name_id = name_id
+					nodeinfo.count = nodeinfo.count + 1
+					break
+				end
+			end
+			if not chk_name_id then
+				chk_name_id = #self.data.nodeinfos + 1
+				self.data.nodeinfos[chk_name_id] = { name_orig = node.name, count = 1 }
+			end
+			node.name_id = chk_name_id
+		else
+			self.data.nodeinfos[node.name_id].count = self.data.nodeinfos[node.name_id].count + 1
+		end
+		node.name = nil --standardize, in case it was given for id determination
 		self.data.scm_data_cache[node.y][node.x][node.z] = node
 	end
 
@@ -138,6 +162,8 @@ plan.new = function( plan_id , anchor_pos)
 		if self.data.scm_data_cache[pos.y] ~= nil then
 			if self.data.scm_data_cache[pos.y][pos.x] ~= nil then
 				if self.data.scm_data_cache[pos.y][pos.x][pos.z] ~= nil then
+					local oldnode = self.data.scm_data_cache[pos.y][pos.x][pos.z]
+					self.data.nodeinfos[oldnode.name_id].count = self.data.nodeinfos[oldnode.name_id].count - 1
 					self.data.nodecount = self.data.nodecount - 1
 					self.data.scm_data_cache[pos.y][pos.x][pos.z] = nil
 				end
@@ -177,12 +203,11 @@ plan.new = function( plan_id , anchor_pos)
 			add_top = 5
 		end
 
-		-- define nodename-ID for air
-		local air_id = #self.data.nodenames + 1
-		self.data.nodenames[ air_id ] = "air"
+		-- cache air_id
+		local air_id
 
 		dprint("create flatting plan")
-		for y = self.data.min_pos.y, self.data.max_pos.y + add_top do -- with additional 5 on top
+		for y = self.data.min_pos.y, self.data.max_pos.y + add_top do
 			--calculate additional grounding
 			if y > self.data.ground_y then --only over ground
 				local high = y-self.data.ground_y
@@ -193,12 +218,12 @@ plan.new = function( plan_id , anchor_pos)
 			end
 
 			dprint("flat level:", y)
-
 			for x = self.data.min_pos.x - add_min, self.data.max_pos.x + add_min do
 				for z = self.data.min_pos.z - add_min, self.data.max_pos.z + add_min do
-					local airnode = {x=x, y=y, z=z, name_id=air_id}
+					local airnode = {x=x, y=y, z=z, name = "air", name_id=air_id}
 					if self:get_node(airnode) == nil then
 						self:add_node(airnode)
+						air_id = airnode.name_id
 					end
 				end
 			end
@@ -308,7 +333,7 @@ plan.new = function( plan_id , anchor_pos)
 	-- prepare node for build
 	function self.get_buildable_node(self, plan_pos, world_pos)
 		-- first run, generate mapping data
-		if self.data.mappednodes == nil then
+		if self.data.mappedinfo == nil then
 			mapping.do_mapping(self.data)
 		end
 
@@ -327,7 +352,7 @@ plan.new = function( plan_id , anchor_pos)
 		end
 
 		--get mapping data
-		local map = self.data.mappednodes[scm_node.name_id]
+		local map = self.data.mappedinfo[scm_node.name_id]
 		if map == nil then
 			return nil
 		end
