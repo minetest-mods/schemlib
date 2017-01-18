@@ -1,12 +1,13 @@
-# Schemlib
-A Schematics library for Minetest mods.
+# Schemlib - A Schematics library for Minetest mods
+
 The goal of this library is to help manage buildings and other node-placement related tasks in other mods.
+The Mod is a consolidation of TownChest and handle_schematics at the time
 
 Current status: Hacking
 
 Reference implementations: WIP / nothing shiny
-
-  - The NPCF-Builder from my fork (builder_schemlib-branch) use some basics: https://github.com/bell07/minetest-npcf/tree/builder_schemlib
+  - The NPCF-Builder from my fork (builder_schemlib-branch) use some basics:
+  https://github.com/bell07/minetest-npcf/tree/builder_schemlib
 
 License: LGPLv2 oder später
 
@@ -29,14 +30,15 @@ License: LGPLv2 oder später
     - house
     - lumber
 
-##public class-methods
+##Plan object
+###public class-methods 
   - new(plan_id [,anchor_pos])    - Constructor - create a new plan object with unique plan_id (WIP)
   - get(plan_id)    - get a existing plan object with unique plan_id
   - get_all()       - get a plan list
   - save_all()      - write plan definitions to files in world
   - load_all()      - read all plan definitions from files in world
 
-##public object methods
+###public object methods
   - add_node(plan_pos, plan_node)  - add a node to plan   (done)
   - get_node(plan_pos)             - get a node from plan (done)
   - del_node(plan_pos)             - delete a node from plan (done)
@@ -58,12 +60,12 @@ License: LGPLv2 oder später
   - do_add_chunk(plan_pos)         - Place a node (done)
   - do_add_chunk_voxel(plan_pos)   - Place a node (done)
 
-#Internals
-##private class attributes
+##Internals
+###private class attributes
   - plan_list - a simple list with all known plans
 
-##private object atributes
-###allways loaded in list
+###private object atributes
+####allways loaded in list
   - plan_id    - a id of the plan (=filename)
   - status     - plan status
   - anchor_pos - position vector in world
@@ -72,10 +74,10 @@ License: LGPLv2 oder später
   - data.min_pos        - minimal {x,y,z} vector
   - data.max_pos        - maximal {x,y,z} vector
 
-###save the cache data using save_cache()
+####save the cache data using save_cache()
   - data.nodecount      - count of nodes in scm_data_cache
   - data.scm_data_cache - all plan nodes
 
-###will be rebuild on demand
+####will be rebuild on demand
   - data.prepared_cache - cache of prepared buildable nodes
 
