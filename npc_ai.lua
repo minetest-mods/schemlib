@@ -83,70 +83,37 @@ function npc_ai.prefer_target(npcpos, t1, t2, savedata)
 		if t1.world_pos.x == lasttarget.world_pos.x and
 				t1.world_pos.y == lasttarget.world_pos.y and
 				t1.world_pos.z == lasttarget.world_pos.z then
-			prefer = prefer + 1
+			prefer = prefer + BUILD_DISTANCE
 		end
 		if t2.world_pos.x == lasttarget.world_pos.x and
 				t2.world_pos.y == lasttarget.world_pos.y and
 				t2.world_pos.z == lasttarget.world_pos.z then
-			prefer = prefer - 1
+			prefer = prefer - BUILD_DISTANCE
 		end
 	end
 
-	-- prefer air in general
+	-- prefer air in general, adjust prefered high for non-air
 	if t1.name == "air" then
-		prefer = prefer + 2
+		prefer = prefer + 3
+	else
+		t1_c.y = t1_c.y + 3
 	end
 	if t2.name == "air" then
-		prefer = prefer - 2
-	end
-
---[[	-- prefer reachable in case of blocks
-	if t1.name ~= "air" and vector.distance(npcpos, t1.world_pos) <= BUILD_DISTANCE-1 then
-		prefer = prefer + 2
-	end
-	if t1.name ~= "air" and vector.distance(npcpos, t2.world_pos) <= BUILD_DISTANCE-1 then
-		prefer = prefer - 2
-	end
-]]
-
-	-- build air up and blocks down
-	local t1_ydelta = npcpos.y - t1.world_pos.y
-	local t2_ydelta = npcpos.y - t2.world_pos.y
-	local t1_xdelta = (math.abs(npcpos.x - t1.world_pos.x)+math.abs(npcpos.z - t1.world_pos.z)) / 1.5
-	local t2_xdelta = (math.abs(npcpos.x - t2.world_pos.x)+math.abs(npcpos.z - t2.world_pos.z)) / 1.5
-
-	if t1.name == "air" and t1_ydelta <= -1 and  -- node over npc
-			-t1_ydelta+1 >= t1_xdelta and        -- stair-like direction up
-			-t1_ydelta+1 < BUILD_DISTANCE and    -- prefer till build size distance only to top
-			t1_xdelta <= BUILD_DISTANCE * 2 then -- prefer till double distance to the site because of walking possible
-		t1_c.y = t1_c.y - (BUILD_DISTANCE-0.5)
-		prefer = prefer + 4
-	elseif t1.name ~= "air" and t1_ydelta >= -1 and  -- node under npc
-			t1_ydelta-1 >= t1_xdelta and        -- stair-like direction up
-			t1_ydelta-1 < BUILD_DISTANCE and    -- prefer till build size distance only to top
-			t1_xdelta <= BUILD_DISTANCE * 2 then -- prefer till double distance to the site because of walking possible
-		t1_c.y = t1_c.y + (BUILD_DISTANCE+1)     -- 1 = 1.5 NPC size - 0.5 reachable buffer
-		prefer = prefer + 4
+		prefer = prefer - 3
 	else
-	-- prefer lower node if not air
-		t1_c.y = t1_c.y + 2.5
+		t2_c.y = t2_c.y + 3
 	end
-	
-	if t2.name == "air" and t2_ydelta <= -1 and  -- node over npc
-			-t2_ydelta+1 >= t2_xdelta and        -- stair-like direction up
-			-t2_ydelta+1 < BUILD_DISTANCE and    -- prefer till build size distance only to top
-			t2_xdelta <= BUILD_DISTANCE * 2 then -- prefer till double distance to the site because of walking possible
-		t2_c.y = t2_c.y - (BUILD_DISTANCE+0.5)
-		prefer = prefer + 4
-	elseif t1.name ~= "air" and t2_ydelta >= -1 and  -- node under npc
-			t2_ydelta-1 >= t2_xdelta and        -- stair-like direction up
-			t2_ydelta-1 < BUILD_DISTANCE and    -- prefer till build size distance only to top
-			t2_xdelta <= BUILD_DISTANCE * 2 then -- prefer till double distance to the site because of walking possible
-		t2_c.y = t2_c.y + (BUILD_DISTANCE+1)     -- 1 = 1.5 NPC size - 0.5 reachable buffer
-		prefer = prefer + 4
-	else
-	-- prefer lower node if not air
-		t2_c.y = t2_c.y + 2.5
+
+	-- penalty for air under the walking line and for non air above
+	local walking_high_t1 = npcpos.y-1 + math.abs(npcpos.x-t1.world_pos.x) + math.abs(npcpos.z-t1.world_pos.z)
+	local walking_high_t2 = npcpos.y-1 + math.abs(npcpos.x-t2.world_pos.x) + math.abs(npcpos.z-t2.world_pos.z)
+	if ( t1.name ~= "air" and t1.world_pos.y > walking_high_t1) or
+			( t1.name == "air" and t1.world_pos.y < walking_high_t1) then
+		prefer = prefer - BUILD_DISTANCE
+	end
+	if ( t2.name ~= "air" and t2.world_pos.y > walking_high_t2) or
+			( t2.name == "air" and t2.world_pos.y < walking_high_t2) then
+		prefer = prefer + BUILD_DISTANCE
 	end
 
 	-- avoid build directly under or in the npc
@@ -154,13 +121,13 @@ function npc_ai.prefer_target(npcpos, t1, t2, savedata)
 			math.abs(npcpos.x - t1.world_pos.x) < 0.5 and
 			math.abs(npcpos.y - t1.world_pos.y) <= BUILD_DISTANCE and
 			math.abs(npcpos.z - t1.world_pos.z) < 0.5 then
-		prefer = prefer-1.5
+		prefer = prefer-BUILD_DISTANCE
 	end
 	if t2.name ~= "air" and
 			math.abs(npcpos.x - t2.world_pos.x) < 0.5 and
-			math.abs(npcpos.y - t1.world_pos.y) <= BUILD_DISTANCE and
+			math.abs(npcpos.y - t2.world_pos.y) <= BUILD_DISTANCE and
 			math.abs(npcpos.z - t2.world_pos.z) < 0.5 then
-		prefer = prefer+1.5
+		prefer = prefer+BUILD_DISTANCE
 	end
 
 	-- compare

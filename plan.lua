@@ -8,6 +8,9 @@ local save_restore = schemlib.save_restore
 local modpath = schemlib.modpath
 local schematics = schemlib.schematics
 
+--------------------------------------
+--	Plan class
+--------------------------------------
 local plan = {}
 plan.plan_list = {}
 
@@ -24,7 +27,9 @@ function plan.get_all()
 	return plan.plan_list
 end
 
-
+--------------------------------------
+--	Create new plan object
+--------------------------------------
 plan.new = function( plan_id , anchor_pos)
 	local self = {}
 	self.plan_id = plan_id
@@ -37,6 +42,9 @@ plan.new = function( plan_id , anchor_pos)
 		plan.plan_list[self.plan_id] = self
 	end
 
+	--------------------------------------
+	--Add node to plan
+	--------------------------------------
 	function self.add_node(self, node)
 		-- insert new
 		if self.data.scm_data_cache[node.y] == nil then
@@ -73,7 +81,9 @@ plan.new = function( plan_id , anchor_pos)
 		self.data.scm_data_cache[node.y][node.x][node.z] = node
 	end
 
-
+	--------------------------------------
+	-- Get node from plan
+	--------------------------------------
 	function self.get_node(self, plan_pos)
 		local pos = plan_pos
 		assert(pos.x, "pos without xyz")
@@ -89,6 +99,9 @@ plan.new = function( plan_id , anchor_pos)
 		return self.data.scm_data_cache[pos.y][pos.x][pos.z]
 	end
 
+	--------------------------------------
+	--Delete node from plan
+	--------------------------------------
 	function self.del_node(self, pos)
 		if self.data.scm_data_cache[pos.y] ~= nil then
 			if self.data.scm_data_cache[pos.y][pos.x] ~= nil then
@@ -122,17 +135,14 @@ plan.new = function( plan_id , anchor_pos)
 		end
 	end
 
+	--------------------------------------
+	--Flood ta buildingplan with air
+	--------------------------------------
 	function self.apply_flood_with_air(self, add_max, add_min, add_top)
 		self.data.ground_y =  math.floor(self.data.ground_y)
-		if add_max == nil then
-			add_max = 3
-		end
-		if add_max == nil then
-			add_max = 0
-		end
-		if add_top == nil then
-			add_top = 5
-		end
+		add_max = add_max or 3
+		add_min = add_min or 0
+		add_top = add_top or 5
 
 		-- cache air_id
 		local air_id
@@ -162,21 +172,31 @@ plan.new = function( plan_id , anchor_pos)
 		dprint("flatting plan done")
 	end
 
-	function self.get_world_pos(self,pos)
-		return {	x=pos.x+self.anchor_pos.x,
-						y=pos.y+self.anchor_pos.y - self.data.ground_y - 1,
-						z=pos.z+self.anchor_pos.z
+	--------------------------------------
+	--Get world position relative to plan position
+	--------------------------------------
+	function self.get_world_pos(self,pos, anchor_pos)
+		local apos = anchor_pos or self.anchor_pos
+		return {	x=pos.x+apos.x,
+						y=pos.y+apos.y - self.data.ground_y - 1,
+						z=pos.z+apos.z
 					}
 	end
 
-	function self.get_plan_pos(self,pos)
-		return {	x=pos.x-self.anchor_pos.x,
-						y=pos.y-self.anchor_pos.y + self.data.ground_y + 1,
-						z=pos.z-self.anchor_pos.z
+	--------------------------------------
+	--Get plan position relative to world position
+	--------------------------------------
+	function self.get_plan_pos(self,pos, anchor_pos)
+		local apos = anchor_pos or self.anchor_pos
+		return {	x=pos.x-apos.x,
+						y=pos.y-apos.y + self.data.ground_y + 1,
+						z=pos.z-apos.z
 					}
 	end
 
-
+	--------------------------------------
+	--Get a random position of an existing node in plan
+	--------------------------------------
 -- get nodes for selection which one should be build
 -- skip parameter is randomized
 	function self.get_node_random(self)
@@ -205,7 +225,9 @@ plan.new = function( plan_id , anchor_pos)
 		end
 	end
 
--- to be able working with forceload chunks
+	--------------------------------------
+	--Get a nodes list for a world chunk
+	--------------------------------------
 	function self.get_chunk_nodes(self, node)
 	-- calculate the begin of the chunk
 		--local BLOCKSIZE = core.MAP_BLOCKSIZE
@@ -243,7 +265,9 @@ plan.new = function( plan_id , anchor_pos)
 		return ret
 	end
 
-
+	--------------------------------------
+	-- Generate a plan from schematics file
+	--------------------------------------
 	function self.read_from_schem_file(self, filename)
 		local file = save_restore.file_access(filename, "r")
 		if file == nil then
@@ -260,8 +284,9 @@ plan.new = function( plan_id , anchor_pos)
 		end
 	end
 
-
-	-- prepare node for build
+	--------------------------------------
+	-- Get a node ready to place
+	--------------------------------------
 	function self.get_buildable_node(self, plan_pos, world_pos)
 		-- first run, generate mapping data
 		if self.data.mappedinfo == nil then
@@ -315,7 +340,18 @@ plan.new = function( plan_id , anchor_pos)
 		return node
 	end
 
+	--------------------------------------
+	--Delete / remove the whole plan
+	--------------------------------------
+	function self.delete_plan(self)
+		if self.plan_id then
+			plan.plan_list[self.plan_id ] = nil
+		end
+	end
 
+	--------------------------------------
+	--Change the plan id
+	--------------------------------------
 	function self.change_plan_id(self, new_plan_id)
 		if self.plan_id then
 			plan.plan_list[self.plan_id ] = nil
@@ -326,12 +362,114 @@ plan.new = function( plan_id , anchor_pos)
 		end
 	end
 
-	function self.delete_plan(self)
-		if self.plan_id then
-			plan.plan_list[self.plan_id ] = nil
+	--------------------------------------
+	--Propose anchor position for the plan
+	--------------------------------------
+	function self.propose_anchor(self, world_pos, do_check, add_y, add_xz)
+		add_xz = add_xz or 3
+		add_y = add_y or 5
+		local minp = self:get_world_pos(self.data.min_pos, world_pos)
+		local maxp = self:get_world_pos(self.data.max_pos, world_pos)
+
+		-- to get some randomization for error-node
+		local minx, maxx, stx, minz, maxz, stz
+		if math.random(2) == 1 then
+			minx = minp.x-add_xz
+			maxx = maxp.x+add_xz
+		else
+			maxx = minp.x-add_xz
+			minx = maxp.x+add_xz
+		end
+		if math.random(2) == 1 then
+			minz = minp.z-add_xz
+			maxz = maxp.z+add_xz
+		else
+			maxz = minp.z-add_xz
+			minz = maxp.z+add_xz
+		end
+		-- handle rotation
+		if minx < maxx then
+			stx = 1
+		else
+			stx = -1
+		end
+		if minz < maxz then
+			stz = 1
+		else
+			stz = -1
+		end
+
+		-- TODO: check for overlaps to other not builded plans
+		-- TODO: get the additional values as parameter
+		local function is_vegetation(nodedef)
+			if nodedef.groups.leaves or
+					nodedef.groups.leafdecay or
+					nodedef.groups.tree then
+				return true
+			else
+				return false
+			end
+		end
+
+		-- only "y" needs to be proposed as usable ground
+		local ground_y
+		local groundnode_count = 0
+
+		for x = minx, maxx, stx do
+			for z = minz, maxz, stz do
+				local is_ground = true
+				for y = minp.y-add_y, maxp.y+add_y, 1 do
+					local pos = {x=x, y=y, z=z}
+					local node = minetest.get_node(pos)
+					if node.name == "ignore" then
+						minetest.get_voxel_manip():read_from_map(pos, pos)
+						node = minetest.get_node(pos)
+					end
+					local nodedef = minetest.registered_nodes[node.name]
+					if do_check and nodedef and
+							nodedef.is_ground_content == false and -- override denied
+							is_vegetation(nodedef) == false then -- allow removal of trees
+						dprint("build denied because of not overridable", node.name, "at", x..':'..z)
+						return false, {x=x, y=y, z=z}
+					end
+
+					if 	node.name == "air" or node.name == "default:snowblock" or
+							nodedef and (nodedef.walkable == false or nodedef.drawtype == "airlike" or is_vegetation(nodedef)) then
+						if y == minp.y-add_y then
+							dprint("build denied because hanging in air at", x..':'..z)
+							return false, {x=x, y=y, z=z}
+						end
+						if is_ground == true then --only if ground above
+							groundnode_count = groundnode_count + 1
+							if groundnode_count == 1 then
+								ground_y = pos.y
+							else
+								ground_y = ground_y + (pos.y - ground_y) / groundnode_count
+							end
+							if not do_check == true then
+								break -- leave y loop, not necessary to check above
+							end
+						end
+						is_ground = false
+					end
+				end
+				if is_ground ~= false then --nil is air only (no ground), true is ground only (no air)
+					-- air only or non-air only. Not buildable
+					dprint("build denied because ground only at", x..':'..z)
+					return false, {x=x, y=world_pos.y, z=z}
+				end
+			end
+		end
+
+		if ground_y then
+--TODO: additional do_check of maybe existing delta to new ground_y is not implemented!
+			return {x=world_pos.x, y=math.floor(ground_y+0.5), z=world_pos.z}
 		end
 	end
 
+	--------------------------------------
+	-- add/build a node
+	--------------------------------------
 	function self.do_add_node(self, buildable_node)
 		if buildable_node.node then
 			minetest.env:add_node(buildable_node.world_pos, buildable_node.node)
@@ -342,6 +480,9 @@ plan.new = function( plan_id , anchor_pos)
 		self:del_node(buildable_node.plan_pos)
 	end
 
+	--------------------------------------
+	--add/build a chunk
+	--------------------------------------
 	function self.do_add_chunk(self, plan_pos)
 		local chunk_pos = self.plan:get_world_pos(plan_pos)
 		dprint("---build chunk", minetest.pos_to_string(plan_pos))
@@ -354,7 +495,9 @@ plan.new = function( plan_id , anchor_pos)
 		end
 	end
 
-
+	--------------------------------------
+	---add/build a chunk using VoxelArea
+	--------------------------------------
 	function self.do_add_chunk_voxel(self, plan_pos)
 		local chunk_pos = self.plan:get_world_pos(plan_pos)
 		dprint("---build chunk uning voxel", minetest.pos_to_string(plan_pos))
@@ -409,13 +552,11 @@ plan.new = function( plan_id , anchor_pos)
 			minetest.env:get_meta(fix.world_pos):from_table(fix.meta)
 		end
 	end
-
-
 	--------------------------------------
 
---------------------
+	--------------------------------------
 --	TODO: save the reference to a global accessable table
---------------------
+	--------------------------------------
 	return self -- the plan object
 end
 
