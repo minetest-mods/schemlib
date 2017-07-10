@@ -8,7 +8,6 @@ schemlib.node = dofile(modpath.."/node.lua")
 schemlib.mapping = dofile(modpath.."/mapping.lua")
 schemlib.worldedit_file = dofile(modpath.."/worldedit_file.lua")
 schemlib.save_restore = dofile(modpath.."/save_restore.lua")
-schemlib.schematics = dofile(modpath.."/schematics.lua")
 schemlib.plan = dofile(modpath.."/plan.lua")
 schemlib.npc_ai = dofile(modpath.."/npc_ai.lua")
 

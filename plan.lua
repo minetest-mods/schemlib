@@ -6,7 +6,7 @@ local dprint = print
 local mapping = schemlib.mapping
 local save_restore = schemlib.save_restore
 local modpath = schemlib.modpath
-local schematics = schemlib.schematics
+local node = schemlib.node
 
 --------------------------------------
 --	Plan class
@@ -321,18 +321,40 @@ end
 -- Generate a plan from schematics file
 --------------------------------------
 function plan_class:read_from_schem_file(filename)
-	local file = save_restore.file_access(filename, "r")
-	if file == nil then
-		dprint("error: could not open file \"" .. filename .. "\"")
-		self.data = nil
-	else
-		-- different file types
-		if string.find(filename, '.mts',  -4) then
-			self.data = schematics.analyze_mts_file(file)
+
+	-- Minetest Schematics
+	if string.find(filename, '.mts',  -4) then
+		local str = minetest.serialize_schematic(filename, "lua", {})
+		if not str then
+			dprint("error: could not open file \"" .. filename .. "\"")
+			return
 		end
-		if string.find(filename, '.we',   -3) or string.find(filename, '.wem',  -4) then
-			local newplan = schematics.analyze_we_file(file)
-			self.data = newplan.data
+		local schematic = loadstring(str.." return(schematic)")()
+			--[[	schematic.yslice_prob = {{ypos = 0,prob = 254},..}
+					schematic.size = { y = 18,x = 10, z = 18},
+					schematic.data = {{param2 = 2,name = "default:tree",prob = 254},..}
+				]]
+
+		-- analyze the file
+		for i, ent in ipairs( schematic.data ) do
+			if ent.name ~= "air" then
+				ent.z = math.floor((i-1)/schematic.size.y/schematic.size.x)
+				ent.y = math.floor((i-1)/schematic.size.x) % schematic.size.y
+				ent.x = (i-1) % schematic.size.x
+				self:add_node(node.new(ent), true)
+			end
+		end
+	-- WorldEdit files
+	elseif string.find(filename, '.we',   -3) or string.find(filename, '.wem',  -4) then
+		local file = save_restore.file_access(filename, "r")
+		if not file then
+			dprint("error: could not open file \"" .. filename .. "\"")
+			return
+		end
+		local nodes = schemlib.worldedit_file.load_schematic(file:read("*a"))
+		-- analyze the file
+		for i, ent in ipairs( nodes ) do
+			self:add_node(node.new(ent), true)
 		end
 	end
 end
