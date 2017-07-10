@@ -36,12 +36,20 @@ end
 --------------------------------------
 --	Create new plan object
 --------------------------------------
-plan.new = function(plan_id , anchor_pos)
+function plan.new(plan_id , anchor_pos)
 	local self = setmetatable({}, plan_class)
 	self.__index = plan_class
 	self.plan_id = plan_id
 	self.anchor_pos = anchor_pos
 	self.data = {}
+	self.data.min_pos = {}
+	self.data.max_pos = {}
+	self.data.groundnode_count = 0
+	self.data.ground_y = -1 --if nothing defined, it is under the building
+	self.data.scm_data_cache = {}
+	self.data.nodeinfos = {}
+	self.data.nodeinfos_by_orig_name = {}
+	self.data.nodecount = 0
 	self.status = "new"
 --	self.plan_type = nil
 
@@ -55,11 +63,10 @@ plan.new = function(plan_id , anchor_pos)
 	return self -- the plan object
 end
 
-
 --------------------------------------
 --Add node to plan
 --------------------------------------
-function plan_class:add_node(node)
+function plan_class:add_node(node, adjustment)
 	-- insert new
 	if self.data.scm_data_cache[node.y] == nil then
 		self.data.scm_data_cache[node.y] = {}
@@ -74,25 +81,56 @@ function plan_class:add_node(node)
 		data.nodeinfos[replaced_node.name_id].count = self.data.nodeinfos[replaced_node.name_id].count-1
 	end
 
-	if not node.name_id then
-		local chk_name_id
-		for name_id, nodeinfo in pairs(self.data.nodeinfos) do
-			if nodeinfo.orig_name == node.name then
-				chk_name_id = name_id
-				nodeinfo.count = nodeinfo.count + 1
-				break
+	local name_id = node.name_id or self.data.nodeinfos_by_orig_name[node.name]
+
+	if not name_id then
+		name_id = #self.data.nodeinfos + 1
+	end
+	if not self.data.nodeinfos_by_orig_name[node.name] then
+		self.data.nodeinfos[name_id] = { name_orig = node.name, count = 1 }
+		self.data.nodeinfos_by_orig_name[node.name] = name_id
+	else
+		self.data.nodeinfos[name_id].count = self.data.nodeinfos[name_id].count + 1
+	end
+
+	node.name_id = name_id
+	local orig_name = node.name
+	node.name = nil --standardize, in case it was given for id determination
+
+	self.data.scm_data_cache[node.y][node.x][node.z] = node
+
+	---Adjust min/max size values and ground high
+	if adjustment then
+		-- adjust min/max position information
+		if not self.data.max_pos.y or node.y > self.data.max_pos.y then
+			self.data.max_pos.y = node.y
+		end
+		if not self.data.min_pos.y or node.y < self.data.min_pos.y then
+			self.data.min_pos.y = node.y
+		end
+		if not self.data.max_pos.x or node.x > self.data.max_pos.x then
+			self.data.max_pos.x = node.x
+		end
+		if not self.data.min_pos.x or node.x < self.data.min_pos.x then
+			self.data.min_pos.x = node.x
+		end
+		if not self.data.max_pos.z or node.z > self.data.max_pos.z then
+			self.data.max_pos.z = node.z
+		end
+		if not self.data.min_pos.z or node.z < self.data.min_pos.z then
+			self.data.min_pos.z = node.z
+		end
+
+		if string.sub(orig_name, 1, 18) == "default:dirt_with_" or
+				orig_name == "farming:soil_wet" then
+			self.data.groundnode_count = self.data.groundnode_count + 1
+			if self.data.groundnode_count == 1 then
+				self.data.ground_y = node.y
+			else
+				self.data.ground_y = self.data.ground_y + (node.y - self.data.ground_y) / self.data.groundnode_count
 			end
 		end
-		if not chk_name_id then
-			chk_name_id = #self.data.nodeinfos + 1
-			self.data.nodeinfos[chk_name_id] = { name_orig = node.name, count = 1 }
-		end
-		node.name_id = chk_name_id
-	else
-		self.data.nodeinfos[node.name_id].count = self.data.nodeinfos[node.name_id].count + 1
 	end
-	node.name = nil --standardize, in case it was given for id determination
-	self.data.scm_data_cache[node.y][node.x][node.z] = node
 end
 
 --------------------------------------
@@ -293,7 +331,8 @@ function plan_class:read_from_schem_file(filename)
 			self.data = schematics.analyze_mts_file(file)
 		end
 		if string.find(filename, '.we',   -3) or string.find(filename, '.wem',  -4) then
-			self.data = schematics.analyze_we_file(file)
+			local newplan = schematics.analyze_we_file(file)
+			self.data = newplan.data
 		end
 	end
 end
@@ -567,4 +606,5 @@ function plan_class:do_add_chunk_voxel(plan_pos)
 	end
 end
 
+------------------------------------------
 return plan

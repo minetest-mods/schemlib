@@ -15,6 +15,8 @@ License: LGPLv2 oder später
 ----
 
 ##data types (and usual names):
+  - node_obj  - object representing a node in plan
+  - plan_obj  - object representing a whole plan
   - plan_pos  - a relative position vector used in plan. Note: the relative 0,0,0 in plan will be the placed to the defined world_pos position
   - world_pos - a absolute ("real") position vector in the world
 
@@ -39,7 +41,7 @@ License: LGPLv2 oder später
   - load_all()      - read all plan definitions from files in world
 
 ###public object methods
-  - add_node(plan_pos, plan_node)  - add a node to plan   (done)
+  - add_node(node_obj, adjustment)  - add a node to plan - if adjustment is given, the min/max and ground_y is calculated
   - get_node(plan_pos)             - get a node from plan (done)
   - del_node(plan_pos)             - delete a node from plan (done)
   - get_node_next_to_pos(plan_pos) - get the nearest node to pos (low-prio)
@@ -74,7 +76,9 @@ License: LGPLv2 oder später
   - status     - plan status
   - anchor_pos - position vector in world
   - data.nodeinfos      - a list of node information for name_id with counter ({name_orig="abc:dcg",count=1})
+  - self.data.nodeinfos_by_orig_name - revert nodeinfos, key is the name_orig, value is the nodeinfo id
   - data.ground_y       - explicit ground adjustment for anchor_pos
+  - self.data.groundnode_count - count of nodes found for ground_y determination
   - data.min_pos        - minimal {x,y,z} vector
   - data.max_pos        - maximal {x,y,z} vector
 
@@ -85,3 +89,7 @@ License: LGPLv2 oder später
 ####will be rebuild on demand
   - data.prepared_cache - cache of prepared buildable nodes
 
+##Node object
+###public class-methods 
+  - new(data)    - Constructor - create a new node object with given data
+ 
