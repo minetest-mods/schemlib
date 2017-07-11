@@ -18,20 +18,6 @@ plan_class.__index = plan_class
 --	Plan class-methods and attributes
 --------------------------------------
 local plan = {}
-plan.plan_list = {}
-
-function plan.get(plan_id)
-	if plan.plan_list ~= nil then
-		return plan.plan_list[plan_id]
-	end
-end
-
-function plan.get_all()
---TODO: list files + merge with plan_list
--- Output table entries:
--- entry[plan_id] = { plan_id=, status=, anchor_pos=, ground_y=, min_pos=, max_pos=, node_count= }
-	return plan.plan_list
-end
 
 --------------------------------------
 --	Create new plan object
@@ -53,13 +39,6 @@ function plan.new(plan_id , anchor_pos)
 	self.status = "new"
 --	self.plan_type = nil
 
-	if self.plan_id ~= nil then
-		plan.plan_list[self.plan_id] = self
-	end
-
-	--------------------------------------
---	TODO: save the reference to a global accessable table
-	--------------------------------------
 	return self -- the plan object
 end
 
@@ -413,28 +392,6 @@ function plan_class:get_buildable_node(plan_pos, world_pos)
 	self.data.prepared_cache[plan_pos.y][plan_pos.x][plan_pos.z] = node
 
 	return node
-end
-
---------------------------------------
---Delete / remove the whole plan
---------------------------------------
-function plan_class:delete_plan()
-	if self.plan_id then
-		plan.plan_list[self.plan_id ] = nil
-	end
-end
-
---------------------------------------
---Change the plan id
---------------------------------------
-function plan_class:change_plan_id(new_plan_id)
-	if self.plan_id then
-		plan.plan_list[self.plan_id ] = nil
-	end
-	self.plan_id = new_plan_id
-	if self.plan_id then
-		plan.plan_list[self.plan_id ] = self
-	end
 end
 
 --------------------------------------

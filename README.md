@@ -23,22 +23,9 @@ License: LGPLv2 oder später
   - plan_node - a abstract node description used in plan till build
   - buildable_node - a enhanced plan node ready for build
 
-  - status
-  "new"    - created
-  "ready"  - ready for processing
-  ??? - custom status possible
-
-  - plan_type - a type of plan to handle different types
-    - house
-    - lumber
-
 ##Plan object
 ###public class-methods 
-  - new(plan_id[,anchor_pos])    - Constructor - create a new plan object with unique plan_id (WIP)
-  - get(plan_id)    - get a existing plan object with unique plan_id
-  - get_all()       - get a plan list
-  - save_all()      - write plan definitions to files in world
-  - load_all()      - read all plan definitions from files in world
+  - new(plan_id[,anchor_pos])    - Constructor - create a new plan object
 
 ###public object methods
   - add_node(node_obj, adjustment)  - add a node to plan - if adjustment is given, the min/max and ground_y is calculated
@@ -53,8 +40,6 @@ License: LGPLv2 oder später
   - get_buildable_node(plan_pos)   - get a plan node ready to build (done)
   - load_plan()                    - load a plan state from file in world-directory (low-prio) (:scm_data_cache)
   - save_plan()                    - store the current plan to a file in world directory and set them valid (low-prio) (:scm_data_cache)
-  - delete_plan()                  - remove the plan from plan_list
-  - change_plan_id(new_plan_id)    - change the plan id
   - propose_anchor(world_pos, bool, add_xz, add_y)
                                    - propose anchor pos nearly given world_pos to be placed.
                                      if bool is given true a check will be done to prevent overbuilding of existing structures
@@ -67,9 +52,6 @@ License: LGPLv2 oder später
   - do_add_chunk_voxel(plan_pos)   - Place a node (done)
 
 ##Internals
-###private class attributes
-  - plan_list - a simple list with all known plans
-
 ###private object atributes
 ####allways loaded in list
   - plan_id    - a id of the plan (=filename)
@@ -88,6 +70,7 @@ License: LGPLv2 oder später
 
 ####will be rebuild on demand
   - data.prepared_cache - cache of prepared buildable nodes
+
 
 ##Node object
 ###public class-methods 
