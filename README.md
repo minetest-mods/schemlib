@@ -53,6 +53,7 @@ License: LGPLv2 oder später
   - plan_obj.anchor_pos - position vector in world
   - plan_obj.data.nodeinfos      - a list of node information for name_id with counter (list={pos_hash,...}, count=1})
   - plan_obj.data.ground_y       - explicit ground adjustment for anchor_pos
+  - plan_obj.data.nodecount      - count of the nodes in plan
   - plan_obj.data.groundnode_count - count of nodes found for ground_y determination (internal)
   - plan_obj.data.min_pos        - minimal {x,y,z} vector
   - plan_obj.data.max_pos        - maximal {x,y,z} vector
@@ -80,7 +81,7 @@ License: LGPLv2 oder später
 
 ## Builder NPC AI object
 ### class-methods
-  - npc_ai_obj = schemlib.npc_ai.new(plan_obj)    - Constructor - create a new NPC AI handler for this plan
+  - npc_ai_obj = schemlib.npc_ai.new(plan_obj, build_distance)    - Constructor - create a new NPC AI handler for this plan. Build distance is the  lenght of npc
 
 ### object-methods
   - npc_ai_obj:plan_target_get(npcpos) - search for the next node to build near npcpos

@@ -1,7 +1,6 @@
 --local dprint = print
 local dprint = function() return end
 
-local BUILD_DISTANCE = 3
 local mapping = schemlib.mapping
 
 local npc_ai = {}
@@ -12,10 +11,11 @@ npc_ai_class.__index = npc_ai_class
 --------------------------------------
 --	Create NPC-AI object
 --------------------------------------
-function npc_ai.new(plan)
+function npc_ai.new(plan, build_distance)
 	local self = setmetatable({}, npc_ai_class)
 	self.__index = npc_ai_class
 	self.plan = plan
+	self.build_distance = build_distance or 3
 	return self
 end
 
@@ -100,33 +100,33 @@ function npc_ai_class:get_node_rating(node, npcpos)
 		if world_pos.x == self.lasttarget_pos.x and
 				world_pos.y == self.lasttarget_pos.y and
 				world_pos.z == self.lasttarget_pos.z then
-			prefer = prefer + BUILD_DISTANCE
+			prefer = prefer + self.build_distance
 		end
 	end
 
 	-- prefer air in general, adjust prefered high for non-air,
 	if mapped.name == "air" then
-		prefer = prefer + BUILD_DISTANCE
+		prefer = prefer + self.build_distance + 1
 	else
 		if node:get_under() then
-			prefer = prefer - (2*BUILD_DISTANCE)
+			prefer = prefer - (2 * self.build_distance)
 		end
-		distance_pos.y = distance_pos.y + BUILD_DISTANCE
+		distance_pos.y = distance_pos.y + self.build_distance
 	end
 
 	-- penalty for air under the walking line and for non air above
 	local walking_high = npcpos.y-1 + math.abs(npcpos.x-world_pos.x) + math.abs(npcpos.z-world_pos.z)
 	if ( mapped.name ~= "air" and world_pos.y > walking_high) or
 			( mapped.name == "air" and world_pos.y < walking_high) then
-		prefer = prefer - BUILD_DISTANCE
+		prefer = prefer - self.build_distance
 	end
 
 	-- avoid build directly under or in the npc
 	if mapped.name ~= "air" and
 			math.abs(npcpos.x - world_pos.x) < 0.5 and
-			math.abs(npcpos.y - world_pos.y) <= BUILD_DISTANCE and
+			math.abs(npcpos.y - world_pos.y) <= self.build_distance and
 			math.abs(npcpos.z - world_pos.z) < 0.5 then
-		prefer = prefer - BUILD_DISTANCE
+		prefer = prefer - self.build_distance
 	end
 
 	-- compare
