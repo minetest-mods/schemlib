@@ -6,12 +6,12 @@ The Mod is a consolidation of TownChest and handle_schematics at the time
 Current status: Hacking
 
 Reference implementations: WIP / nothing shiny
-  - The NPCF-Builder from my fork (builder_schemlib-branch) use some basics:
-  https://github.com/bell07/minetest-npcf/tree/builder_schemlib
+  - The NPCF-Builder use some basics: https://github.com/stujones11/minetest-npcf/ 
+  - My NPCF-Builder (slightly other focus): https://github.com/bell07/minetest-schemlib_builder_npcf
 
-License: LGPLv2 oder später
+License: LGPLv2
 
-#API
+# API
 ----
 
 ## data types (and usual names):
