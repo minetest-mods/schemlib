@@ -33,9 +33,6 @@ function plan.new(plan_id , anchor_pos)
 	self.data.scm_data_cache = {}
 	self.data.nodeinfos = {}
 	self.data.nodecount = 0
-	self.status = "new"
---	self.plan_type = nil
-
 	return self -- the plan object
 end
 
@@ -301,7 +298,7 @@ function plan_class:read_from_schem_file(filename)
 		end
 	-- WorldEdit files
 	elseif string.find(filename, '.we',   -3) or string.find(filename, '.wem',  -4) then
-		local file = save_restore.file_access(filename, "r")
+		local file = io.open( filename, 'r' )
 		if not file then
 			dprint("error: could not open file \"" .. filename .. "\"")
 			return
