@@ -1,6 +1,6 @@
 -- debug-print
-local dprint = print
---local dprint = function dummy()
+--local dprint = print
+local dprint = function() return end
 
 local mapping = {}
 
@@ -99,24 +99,15 @@ c["xpanes:pane_10"]              = { name = "xpanes:pane_flat", param2 = 1 } --u
 -----------------------------------------------
 -- copy table of mapping entry
 -----------------------------------------------
-function mapping.merge_map_entry(entry1, entry2)
+local function merge_map_entry(entry1, entry2)
 	if entry2 then
-		return {name = entry1.name or entry2.name,
-				node_def = entry1.node_def or entry2.node_def,
-				content_id = entry1.content_id or entry2.content_id,
-				param2 = entry1.param2 or entry2.param2,
-				meta = entry1.meta or entry2.meta,
-				custom_function = entry1.custom_function or entry2.custom_function,
-				cost_item = entry1.cost_item or entry2.cost_item,
-				}
+		local ret_entry = table.copy(entry2)
+		for k,v in pairs(entry1) do
+			ret_entry[k] = v
+		end
+		return ret_entry
 	else
-		return {name = entry1.name,
-				content_id = entry1.content_id,
-				node_def = entry1.node_def,
-				param2 = entry1.param2,
-				meta = entry1.meta,
-				custom_function = entry1.custom_function,
-				cost_item = entry1.cost_item}
+		return table.copy(entry1)
 	end
 end
 
@@ -162,13 +153,13 @@ function mapping.map_unknown(name)
 	end
 
 	dprint("mapped", name, "to", map.name)
-	return mapping.merge_map_entry(map)
+	return merge_map_entry(map)
 end
 
 -----------------------------------------------
 -- Take filters and actions on nodes before building
 -----------------------------------------------
-function mapping.map_name(name)
+function mapping.map(name)
 -- get mapped registred node name for further mappings
 	local node_chk = minetest.registered_nodes[name]
 
@@ -177,9 +168,9 @@ function mapping.map_name(name)
 		local fallback = mapping.map_unknown(name)
 		if fallback then
 			dprint("map fallback:", dump(fallback))
-			local fbmapped = mapping.map_name(fallback.name)
+			local fbmapped = mapping.map(fallback.name)
 			if fbmapped then
-				return mapping.merge_map_entry(fbmapped, fallback) --merge fallback values into the mapped node
+				return merge_map_entry(fbmapped, fallback) --merge fallback values into the mapped node
 			end
 		end
 		dprint("unmapped node", name)
@@ -192,9 +183,8 @@ function mapping.map_name(name)
 	if not map then
 		mr = {}
 		mr.name = name
-		mr.node_def = node_chk
 	else
-		mr = mapping.merge_map_entry(map)
+		mr = merge_map_entry(map)
 		if mr.name == nil then
 			mr.name = name
 		end
@@ -205,17 +195,16 @@ function mapping.map_name(name)
 		return nil
 	end
 
-	mr.node_def = minetest.registered_nodes[mr.name]
+	local node_def = minetest.registered_nodes[mr.name]
 
 	-- determine cost_item
 	if not mr.cost_item then
-
 		--Check for price or if it is free
 		local recipe = minetest.get_craft_recipe(mr.name)
-		if (mr.node_def.groups.not_in_creative_inventory and --not in creative
-				not (mr.node_def.groups.not_in_creative_inventory == 0) and
+		if (node_def.groups.not_in_creative_inventory and --not in creative
+				not (node_def.groups.not_in_creative_inventory == 0) and
 				(not recipe or not recipe.items)) --and not craftable
-				or (not mr.node_def.description or mr.node_def.description == "") then -- no description
+				or (not node_def.description or node_def.description == "") then -- no description
 			-- node cannot be used as payment. Check for drops
 			local dropstack = minetest.get_node_drops(mr.name)
 			if dropstack then
@@ -228,20 +217,12 @@ function mapping.map_name(name)
 		end
 	end
 
-	mr.content_id = minetest.get_content_id(mr.name)
+	if mr.cost_item == "" then
+		mr.cost_item = nil
+	end
+
 	dprint("map", name, "to", mr.name, mr.param2, mr.cost_item)
 	return mr
-end
-
------------------------------------------------
--- create a "mappedinfo" using the data from analyze_* files
------------------------------------------------
-function mapping.do_mapping(data)
-	data.mappedinfo = {}
-	for name_id, nodeinfo in ipairs(data.nodeinfos) do
-		dprint("start mapping for", dump(nodeinfo))
-		data.mappedinfo[name_id] = mapping.map_name(nodeinfo.name_orig)
-	end
 end
 
 return mapping

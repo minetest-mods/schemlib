@@ -1,9 +1,7 @@
 -- debug-print
-local dprint = print
---local dprint = function() return end
+--local dprint = print
+local dprint = function() return end
 
-
-local mapping = schemlib.mapping
 local save_restore = schemlib.save_restore
 local modpath = schemlib.modpath
 local node = schemlib.node
@@ -34,7 +32,6 @@ function plan.new(plan_id , anchor_pos)
 	self.data.ground_y = -1 --if nothing defined, it is under the building
 	self.data.scm_data_cache = {}
 	self.data.nodeinfos = {}
-	self.data.nodeinfos_by_orig_name = {}
 	self.data.nodecount = 0
 	self.status = "new"
 --	self.plan_type = nil
@@ -45,68 +42,62 @@ end
 --------------------------------------
 --Add node to plan
 --------------------------------------
-function plan_class:add_node(node, adjustment)
-	-- insert new
-	if self.data.scm_data_cache[node.y] == nil then
-		self.data.scm_data_cache[node.y] = {}
+function plan_class:add_node(plan_pos, node, adjustment)
+	-- insert new to 3d scm cache
+	if self.data.scm_data_cache[plan_pos.y] == nil then
+		self.data.scm_data_cache[plan_pos.y] = {}
 	end
-	if self.data.scm_data_cache[node.y][node.x] == nil then
-		self.data.scm_data_cache[node.y][node.x] = {}
+	if self.data.scm_data_cache[plan_pos.y][plan_pos.x] == nil then
+		self.data.scm_data_cache[plan_pos.y][plan_pos.x] = {}
 	end
-	if self.data.scm_data_cache[node.y][node.x][node.z] == nil then
+	if self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z] == nil then
 		self.data.nodecount = self.data.nodecount + 1
 	else
-		local replaced_node = self.data.scm_data_cache[node.y][node.x][node.z]
-		data.nodeinfos[replaced_node.name_id].count = self.data.nodeinfos[replaced_node.name_id].count-1
+		local replaced_node = self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z]
+		self.data.nodeinfos[replaced_node.name].count = self.data.nodeinfos[replaced_node.name].count-1
 	end
+	node.plan_pos = plan_pos
+	node.plan = self
+	self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z] = node
 
-	local name_id = node.name_id or self.data.nodeinfos_by_orig_name[node.name]
-
-	if not name_id then
-		name_id = #self.data.nodeinfos + 1
-	end
-	if not self.data.nodeinfos_by_orig_name[node.name] then
-		self.data.nodeinfos[name_id] = { name_orig = node.name, count = 1 }
-		self.data.nodeinfos_by_orig_name[node.name] = name_id
+	-- insert to nodeinfos
+	if self.data.nodeinfos[node.name] == nil then
+		self.data.nodeinfos[node.name] = {name_orig = node.name, count = 1 }
 	else
-		self.data.nodeinfos[name_id].count = self.data.nodeinfos[name_id].count + 1
+		self.data.nodeinfos[node.name].count = self.data.nodeinfos[node.name].count + 1
 	end
 
-	node.name_id = name_id
-	local orig_name = node.name
-	node.name = nil --standardize, in case it was given for id determination
-
-	self.data.scm_data_cache[node.y][node.x][node.z] = node
+	node.nodeinfo = self.data.nodeinfos[node.name]
 
 	---Adjust min/max size values and ground high
 	if adjustment then
 		-- adjust min/max position information
-		if not self.data.max_pos.y or node.y > self.data.max_pos.y then
-			self.data.max_pos.y = node.y
+		if not self.data.max_pos.y or plan_pos.y > self.data.max_pos.y then
+			self.data.max_pos.y = plan_pos.y
 		end
-		if not self.data.min_pos.y or node.y < self.data.min_pos.y then
-			self.data.min_pos.y = node.y
+		if not self.data.min_pos.y or plan_pos.y < self.data.min_pos.y then
+			self.data.min_pos.y = plan_pos.y
 		end
-		if not self.data.max_pos.x or node.x > self.data.max_pos.x then
-			self.data.max_pos.x = node.x
+		if not self.data.max_pos.x or plan_pos.x > self.data.max_pos.x then
+			self.data.max_pos.x = plan_pos.x
 		end
-		if not self.data.min_pos.x or node.x < self.data.min_pos.x then
-			self.data.min_pos.x = node.x
+		if not self.data.min_pos.x or plan_pos.x < self.data.min_pos.x then
+			self.data.min_pos.x = plan_pos.x
 		end
-		if not self.data.max_pos.z or node.z > self.data.max_pos.z then
-			self.data.max_pos.z = node.z
+		if not self.data.max_pos.z or plan_pos.z > self.data.max_pos.z then
+			self.data.max_pos.z = plan_pos.z
 		end
-		if not self.data.min_pos.z or node.z < self.data.min_pos.z then
-			self.data.min_pos.z = node.z
+		if not self.data.min_pos.z or plan_pos.z < self.data.min_pos.z then
+			self.data.min_pos.z = plan_pos.z
 		end
 
-		if string.sub(orig_name, 1, 18) == "default:dirt_with_" or
-				orig_name == "farming:soil_wet" then
+		if string.sub(node.name, 1, 18) == "default:dirt_with_" or
+				node.name == "farming:soil_wet" then
 			self.data.groundnode_count = self.data.groundnode_count + 1
 			if self.data.groundnode_count == 1 then
-				self.data.ground_y = node.y
+				self.data.ground_y = plan_pos.y
 			else
-				self.data.ground_y = self.data.ground_y + (node.y - self.data.ground_y) / self.data.groundnode_count
+				self.data.ground_y = self.data.ground_y + (plan_pos.y - self.data.ground_y) / self.data.groundnode_count
 			end
 		end
 	end
@@ -138,7 +129,7 @@ function plan_class:del_node(pos)
 		if self.data.scm_data_cache[pos.y][pos.x] ~= nil then
 			if self.data.scm_data_cache[pos.y][pos.x][pos.z] ~= nil then
 				local oldnode = self.data.scm_data_cache[pos.y][pos.x][pos.z]
-				self.data.nodeinfos[oldnode.name_id].count = self.data.nodeinfos[oldnode.name_id].count - 1
+				self.data.nodeinfos[oldnode.name].count = self.data.nodeinfos[oldnode.name].count - 1
 				self.data.nodecount = self.data.nodecount - 1
 				self.data.scm_data_cache[pos.y][pos.x][pos.z] = nil
 			end
@@ -148,20 +139,6 @@ function plan_class:del_node(pos)
 		end
 		if next(self.data.scm_data_cache[pos.y]) == nil then
 			self.data.scm_data_cache[pos.y] = nil
-		end
-	end
-
-	if self.data.prepared_cache and self.data.prepared_cache[pos.y] ~= nil then
-		if self.data.prepared_cache[pos.y][pos.x]then
-			if self.data.prepared_cache[pos.y][pos.x][pos.z] ~= nil then
-				self.data.prepared_cache[pos.y][pos.x][pos.z] = nil
-			end
-			if next(self.data.prepared_cache[pos.y][pos.x]) == nil then
-				self.data.prepared_cache[pos.y][pos.x] = nil
-			end
-		end
-		if next(self.data.prepared_cache[pos.y]) == nil then
-			self.data.prepared_cache[pos.y] = nil
 		end
 	end
 end
@@ -192,10 +169,9 @@ function plan_class:apply_flood_with_air(add_max, add_min, add_top)
 		dprint("flat level:", y)
 		for x = self.data.min_pos.x - add_min, self.data.max_pos.x + add_min do
 			for z = self.data.min_pos.z - add_min, self.data.max_pos.z + add_min do
-				local airnode = {x=x, y=y, z=z, name = "air", name_id=air_id}
-				if self:get_node(airnode) == nil then
-					self:add_node(airnode)
-					air_id = airnode.name_id
+				local pos = {x=x, y=y, z=z}
+				if not self:get_node(pos) then
+					self:add_node(pos, node.new({name = "air"}))
 				end
 			end
 		end
@@ -252,7 +228,7 @@ function plan_class:get_node_random()
 	local z = keyset[math.random(#keyset)]
 
 	if z ~= nil then
-		return {x=x,y=y,z=z}
+		return self.data.scm_data_cache[y][x][z]
 	end
 end
 
@@ -283,9 +259,7 @@ function plan_class:get_chunk_nodes(plan_pos)
 				if self.data.scm_data_cache[y][x] ~= nil then
 					for z = minv.z, maxv.z do
 						if self.data.scm_data_cache[y][x][z] ~= nil then
-							local pos = {x=x,y=y,z=z}
-							local wpos = self:get_world_pos(pos)
-							table.insert(ret, self:get_buildable_node(pos, wpos))
+							table.insert(ret, self.data.scm_data_cache[y][x][z])
 						end
 					end
 				end
@@ -293,7 +267,7 @@ function plan_class:get_chunk_nodes(plan_pos)
 		end
 	end
 	dprint("nodes in chunk to build", #ret)
-	return ret
+	return ret, minp, maxp -- minp/maxp are worldpos
 end
 
 --------------------------------------
@@ -317,10 +291,12 @@ function plan_class:read_from_schem_file(filename)
 		-- analyze the file
 		for i, ent in ipairs( schematic.data ) do
 			if ent.name ~= "air" then
-				ent.z = math.floor((i-1)/schematic.size.y/schematic.size.x)
-				ent.y = math.floor((i-1)/schematic.size.x) % schematic.size.y
-				ent.x = (i-1) % schematic.size.x
-				self:add_node(node.new(ent), true)
+				local pos = {
+						z = math.floor((i-1)/schematic.size.y/schematic.size.x),
+						y = math.floor((i-1)/schematic.size.x) % schematic.size.y,
+						x = (i-1) % schematic.size.x
+					}
+				self:add_node(pos, node.new(ent), true)
 			end
 		end
 	-- WorldEdit files
@@ -333,65 +309,9 @@ function plan_class:read_from_schem_file(filename)
 		local nodes = schemlib.worldedit_file.load_schematic(file:read("*a"))
 		-- analyze the file
 		for i, ent in ipairs( nodes ) do
-			self:add_node(node.new(ent), true)
+			self:add_node({x=ent.x, y=ent.y, z=ent.z}, node.new(ent), true)
 		end
 	end
-end
-
---------------------------------------
--- Get a node ready to place
---------------------------------------
-function plan_class:get_buildable_node(plan_pos, world_pos)
-	-- first run, generate mapping data
-	if self.data.mappedinfo == nil then
-		mapping.do_mapping(self.data)
-	end
-
-	-- get from cache
-	if self.data.prepared_cache ~= nil and
-			self.data.prepared_cache[plan_pos.y] ~= nil and
-			self.data.prepared_cache[plan_pos.y][plan_pos.x] ~= nil and
-			self.data.prepared_cache[plan_pos.y][plan_pos.x][plan_pos.z] ~= nil then
-		return self.data.prepared_cache[plan_pos.y][plan_pos.x][plan_pos.z]
-	end
-
-	-- get scm data
-	local scm_node = self:get_node(plan_pos)
-	if scm_node == nil then
-		return nil
-	end
-
-	--get mapping data
-	local map = self.data.mappedinfo[scm_node.name_id]
-	if map == nil then
-		return nil
-	end
-
-	local node = mapping.merge_map_entry(map, scm_node)
-
-	if node.custom_function ~= nil then
-		node.custom_function(node, plan_pos, world_pos)
-	end
-
-	-- maybe node name is changed in custom function. Update the content_id in this case
-	node.content_id = minetest.get_content_id(node.name)
-	node.node_def = minetest.registered_nodes[node.name]
-	node.plan_pos = plan_pos
-	node.world_pos = world_pos
-
-	-- store the mapped node info in cache
-	if self.data.prepared_cache == nil then
-		self.data.prepared_cache = {}
-	end
-	if self.data.prepared_cache[plan_pos.y] == nil then
-		self.data.prepared_cache[plan_pos.y] = {}
-	end
-	if self.data.prepared_cache[plan_pos.y][plan_pos.x] == nil then
-		self.data.prepared_cache[plan_pos.y][plan_pos.x] = {}
-	end
-	self.data.prepared_cache[plan_pos.y][plan_pos.x][plan_pos.z] = node
-
-	return node
 end
 
 --------------------------------------
@@ -500,19 +420,6 @@ function plan_class:propose_anchor(world_pos, do_check, add_y, add_xz)
 end
 
 --------------------------------------
--- add/build a node
---------------------------------------
-function plan_class:do_add_node(buildable_node)
-	if buildable_node.node then
-		minetest.env:add_node(buildable_node.world_pos, buildable_node.node)
-		if buildable_node.node.meta then
-			minetest.env:get_meta(buildable_node.world_pos):from_table(buildable_node.node.meta)
-		end
-	end
-	self:del_node(buildable_node.plan_pos)
-end
-
---------------------------------------
 --add/build a chunk
 --------------------------------------
 function plan_class:do_add_chunk(plan_pos)
@@ -521,12 +428,12 @@ function plan_class:do_add_chunk(plan_pos)
 
 	local chunk_nodes = self:get_chunk_nodes(self:get_plan_pos(chunk_pos))
 	dprint("Instant build of chunk: nodes:", #chunk_nodes)
-	for idx, nodeplan in ipairs(chunk_nodes) do
-		--TODO: call "add_node"
-		self:do_add_node(nodeplan)
+	for idx, node in ipairs(chunk_nodes) do
+		node:place()
 	end
 end
 
+--[[
 --------------------------------------
 ---add/build a chunk using VoxelArea
 --------------------------------------
@@ -546,7 +453,7 @@ function plan_class:do_add_chunk_voxel(plan_pos)
 	for idx, origdata in pairs(data) do -- do not touch for beter light update
 		local wpos = a:position(idx)
 		local pos = self:get_plan_pos(wpos)
-		local node = self:get_buildable_node(pos, wpos)
+		local node = self:get_node(pos):get_mapped()
 		if node and node.content_id then
 			-- write to voxel
 			data[idx] = node.content_id
@@ -584,6 +491,7 @@ function plan_class:do_add_chunk_voxel(plan_pos)
 		minetest.env:get_meta(fix.world_pos):from_table(fix.meta)
 	end
 end
+]]
 
 ------------------------------------------
 return plan

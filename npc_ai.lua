@@ -1,55 +1,77 @@
-local dprint = print
---local dprint = function() return end
-
-local npc_ai = {}
+--local dprint = print
+local dprint = function() return end
 
 local BUILD_DISTANCE = 3
 local mapping = schemlib.mapping
 
-npc_ai.get_if_buildable = function(plan, realpos, node_prep)
-	local pos = plan:get_plan_pos(realpos)
-	local node
-	if node_prep then
-		node = node_prep
-	else
-		node = plan:get_buildable_node(pos, realpos)
-	end
+local npc_ai = {}
 
+local npc_ai_class = {}
+npc_ai_class.__index = npc_ai_class
+
+--------------------------------------
+--	Create NPC-AI object
+--------------------------------------
+function npc_ai.new(plan)
+	local self = setmetatable({}, npc_ai_class)
+	self.__index = npc_ai_class
+	self.plan = plan
+	return self
+end
+
+--------------------------------------
+--	Load a region to ve able to see things
+--------------------------------------
+function npc_ai_class:load_region(min_world_pos, max_world_pos)
+	self.vm = minetest.get_voxel_manip()
+	self.vm_minp, self.vm_maxp = self.vm:read_from_map(min_world_pos, max_world_pos)
+	self.vm_area = VoxelArea:new({MinEdge = self.vm_minp, MaxEdge = self.vm_maxp})
+	self.vm_data = self.vm:get_data()
+	self.vm_param2_data = self.vm:get_param2_data()
+end
+
+
+--------------------------------------
+--	Check if the node from plan already built in the world
+--------------------------------------
+function npc_ai_class:get_if_buildable(node)
 	if not node then
-		plan:del_node(pos)
-		return nil
-	end
-
-	-- get info about placed node to compare
-	local orig_node = minetest.get_node(realpos)
-	if orig_node.name == "ignore" then
-		minetest.get_voxel_manip():read_from_map(realpos, realpos)
-		orig_node = minetest.get_node(realpos)
-	end
-
-	if not orig_node or orig_node.name == "ignore" then --not loaded chunk. can be forced by forceload_block before check if buildable
-		dprint("ignore node at", minetest.pos_to_string(realpos))
-		return nil
+		return
 	end
 
 	-- check if already built
-	if orig_node.name == node.name or orig_node.name == minetest.registered_nodes[node.name].name then 
+	local mapped = node:get_mapped()
+	if not mapped then
+		-- not buildable
+		node:remove_from_plan()
+		return nil
+	end
+
+	-- get the original node from loaded area. Load a chunk if not given
+	local world_pos = node:get_world_pos()
+	local node_index
+
+	if self.vm_area then
+		node_index = self.vm_area:indexp(world_pos)
+	end
+	if not node_index then
+		self:load_region(world_pos, world_pos)
+		node_index = self.vm_area:indexp(world_pos)
+	end
+
+	if self.vm_data[node_index] == mapped.content_id then
 		-- right node is at the place. there are no costs to touch them. Check if a touch needed
-		if (node.param2 ~= orig_node.param2 and not (node.param2 == nil and orig_node.param2  == 0)) then
+		if mapped.param2 ~= self.vm_param2_data[node_index] then
 			--param2 adjustment
---			node.matname = mapping.c_free_item -- adjust params for free
 			return node
-		elseif not node.meta then
+		elseif not mapped.meta then
 			--same item without metadata. nothing to do
-			plan:del_node(pos)
+			node:remove_from_plan()
 			return nil
-		elseif mapping.is_equal_meta(minetest.get_meta(realpos):to_table(), node.meta) then
+		elseif mapping.is_equal_meta(minetest.get_meta(world_pos):to_table(), mapped.meta) then
 			--metadata adjustment
-			plan:del_node(pos)
+			node:remove_from_plan()
 			return nil
-		elseif node.matname == mapping.c_free_item then
-			-- TODO: check if nearly nodes are already built
-			return node
 		else
 			return node
 		end
@@ -59,197 +81,173 @@ npc_ai.get_if_buildable = function(plan, realpos, node_prep)
 	end
 end
 
+--------------------------------------
+--	Get rating for node which one should be built at next
+--------------------------------------
+function npc_ai_class:get_node_rating(node, npcpos)
 
-function npc_ai.prefer_target(npcpos, t1, t2, savedata)
-	if not t1 then
-		return t2
-	end
-
-	-- variables for preference manipulation
-	local t1_c = table.copy(t1.world_pos)
-	local t2_c = table.copy(t2.world_pos)
+	local world_pos = node:get_world_pos()
+	local mapped = node:get_mapped()
+	local distance_pos = table.copy(world_pos)
 	local prefer = 0
-	local lasttarget = savedata.last_selection
 
 	--prefer same items in building order
-	if lasttarget then
-		if lasttarget.name == t1.name then
+	if self.lasttarget_name then
+		if self.lasttarget_name == mapped.name then
 			prefer = prefer + 1
 		end
-		if lasttarget.name == t2.name then
-			prefer = prefer - 1
-		end
 
-		if t1.world_pos.x == lasttarget.world_pos.x and
-				t1.world_pos.y == lasttarget.world_pos.y and
-				t1.world_pos.z == lasttarget.world_pos.z then
+		if world_pos.x == self.lasttarget_pos.x and
+				world_pos.y == self.lasttarget_pos.y and
+				world_pos.z == self.lasttarget_pos.z then
 			prefer = prefer + BUILD_DISTANCE
 		end
-		if t2.world_pos.x == lasttarget.world_pos.x and
-				t2.world_pos.y == lasttarget.world_pos.y and
-				t2.world_pos.z == lasttarget.world_pos.z then
-			prefer = prefer - BUILD_DISTANCE
-		end
 	end
 
-	-- prefer air in general, adjust prefered high for non-air
-	if t1.name == "air" then
-		prefer = prefer + 3
+	-- prefer air in general, adjust prefered high for non-air,
+	if mapped.name == "air" then
+		prefer = prefer + BUILD_DISTANCE
 	else
-		t1_c.y = t1_c.y + 3
-	end
-	if t2.name == "air" then
-		prefer = prefer - 3
-	else
-		t2_c.y = t2_c.y + 3
+		if node:get_under() then
+			prefer = prefer - (2*BUILD_DISTANCE)
+		end
+		distance_pos.y = distance_pos.y + BUILD_DISTANCE
 	end
 
 	-- penalty for air under the walking line and for non air above
-	local walking_high_t1 = npcpos.y-1 + math.abs(npcpos.x-t1.world_pos.x) + math.abs(npcpos.z-t1.world_pos.z)
-	local walking_high_t2 = npcpos.y-1 + math.abs(npcpos.x-t2.world_pos.x) + math.abs(npcpos.z-t2.world_pos.z)
-	if ( t1.name ~= "air" and t1.world_pos.y > walking_high_t1) or
-			( t1.name == "air" and t1.world_pos.y < walking_high_t1) then
+	local walking_high = npcpos.y-1 + math.abs(npcpos.x-world_pos.x) + math.abs(npcpos.z-world_pos.z)
+	if ( mapped.name ~= "air" and world_pos.y > walking_high) or
+			( mapped.name == "air" and world_pos.y < walking_high) then
 		prefer = prefer - BUILD_DISTANCE
-	end
-	if ( t2.name ~= "air" and t2.world_pos.y > walking_high_t2) or
-			( t2.name == "air" and t2.world_pos.y < walking_high_t2) then
-		prefer = prefer + BUILD_DISTANCE
 	end
 
 	-- avoid build directly under or in the npc
-	if t1.name ~= "air" and
-			math.abs(npcpos.x - t1.world_pos.x) < 0.5 and
-			math.abs(npcpos.y - t1.world_pos.y) <= BUILD_DISTANCE and
-			math.abs(npcpos.z - t1.world_pos.z) < 0.5 then
-		prefer = prefer-BUILD_DISTANCE
-	end
-	if t2.name ~= "air" and
-			math.abs(npcpos.x - t2.world_pos.x) < 0.5 and
-			math.abs(npcpos.y - t2.world_pos.y) <= BUILD_DISTANCE and
-			math.abs(npcpos.z - t2.world_pos.z) < 0.5 then
-		prefer = prefer+BUILD_DISTANCE
+	if mapped.name ~= "air" and
+			math.abs(npcpos.x - world_pos.x) < 0.5 and
+			math.abs(npcpos.y - world_pos.y) <= BUILD_DISTANCE and
+			math.abs(npcpos.z - world_pos.z) < 0.5 then
+		prefer = prefer - BUILD_DISTANCE
 	end
 
 	-- compare
-	if vector.distance(npcpos, t1_c) - prefer > vector.distance(npcpos, t2_c) then
-		return t2
-	else
-		return t1
+	return prefer - vector.distance(npcpos, distance_pos)
+end
+
+--------------------------------------
+--	Select the best rated node from list
+--------------------------------------
+function npc_ai_class:prefer_target(npcpos, nodeslist)
+	local selected_node
+	local selected_node_rating
+	for _, node in ipairs(nodeslist) do
+		if self:get_if_buildable(node) then
+			local current_rating = self:get_node_rating(node, npcpos)
+			if not selected_node or current_rating > selected_node_rating then
+				selected_node = node
+				selected_node_rating = current_rating
+			end
+		end
 	end
+	return selected_node
 
 end
 
-
-function npc_ai.plan_target_get(z)
-	local plan = z.plan
-	local npcpos = table.copy(z.npcpos)
-	local savedata = z.savedata
-
+--------------------------------------
+--	Select the best rated node from list
+--------------------------------------
+function npc_ai_class:plan_target_get(npcpos)
 	local npcpos_round = vector.round(npcpos)
+	local npcpos_plan = self.plan:get_plan_pos(npcpos_round)
 	local selectednode
+	local first_distance = 5
+
+	local prefer_list = {}
 
 	-- first try: look for nearly buildable nodes
 	dprint("search for nearly node")
-	for x=npcpos_round.x-5, npcpos_round.x+5 do
-		for y=npcpos_round.y-5, npcpos_round.y+5 do
-			for z=npcpos_round.z-5, npcpos_round.z+5 do
-				local node = npc_ai.get_if_buildable(plan,{x=x,y=y,z=z})
+	for x=npcpos_plan.x-first_distance, npcpos_plan.x+first_distance do
+		for y=npcpos_plan.y-first_distance, npcpos_plan.y+first_distance do
+			for z=npcpos_plan.z-first_distance, npcpos_plan.z+first_distance do
+				local node = self.plan:get_node({x=x,y=y,z=z})
 				if node then
-					selectednode = npc_ai.prefer_target(npcpos, selectednode, node, savedata)
+					table.insert(prefer_list, node)
 				end
 			end
 		end
 	end
+	self:load_region(vector.subtract(npcpos_round, first_distance), vector.add(npcpos_round, first_distance))
+	selectednode = self:prefer_target(npcpos, prefer_list)
 	if selectednode then
-		dprint("nearly found: NPC: "..minetest.pos_to_string(npcpos).." Block "..minetest.pos_to_string(selectednode.world_pos))
-	end
-
-	if not selectednode then
+		dprint("nearly found: NPC: "..minetest.pos_to_string(npcpos).." Block "..minetest.pos_to_string(selectednode:get_world_pos()))
+		self.lasttarget_name = selectednode:get_mapped().name
+		self.lasttarget_pos = selectednode:get_world_pos()
+		return selectednode
+	else
 		dprint("nearly nothing found")
-		-- get the old target to compare
-		if savedata.last_selection and savedata.last_selection.world_pos and
-				(savedata.last_selection.name_id or savedata.last_selection.name) then
-			selectednode = npc_ai.get_if_buildable(plan, savedata.last_selection.world_pos, savedata.last_selection)
-		end
 	end
 
 	-- second try. Check the current chunk
 	dprint("search for node in current chunk")
-
-	local chunk_nodes = plan:get_chunk_nodes(plan:get_plan_pos(npcpos_round))
+	local chunk_nodes, min_world_pos, max_world_pos = self.plan:get_chunk_nodes(npcpos_plan)
+	-- add last selection to the current chunk to compare
+	if self.lasttarget_pos then
+		table.insert(chunk_nodes, self.plan:get_node(self.lasttarget_pos))
+	end
 	dprint("Chunk loaeded: nodes:", #chunk_nodes)
-
-	for idx, nodeplan in ipairs(chunk_nodes) do
-		local node = npc_ai.get_if_buildable(plan, nodeplan.world_pos, nodeplan)
-		if node then
-			selectednode = npc_ai.prefer_target(npcpos, selectednode, node, savedata)
-		end
-	end
-
+	self:load_region(min_world_pos, max_world_pos)
+	selectednode = self:prefer_target(npcpos, chunk_nodes)
 	if selectednode then
-		dprint("found in current chunk: NPC: "..minetest.pos_to_string(npcpos).." Block "..minetest.pos_to_string(selectednode.world_pos))
-	end
-
-	if not selectednode then
-		dprint("get random node")
-
-		local random_pos = plan:get_node_random()
-		if random_pos then
-			dprint("---check chunk", minetest.pos_to_string(random_pos))
-			local wpos = plan:get_world_pos(random_pos)
-			local node = npc_ai.get_if_buildable(plan, wpos)
-			if node then
-				selectednode = npc_ai.prefer_target(npcpos, selectednode, node, savedata)
-			end
-
-			if selectednode then
-				dprint("random node: Block "..minetest.pos_to_string(random_pos))
-			else
-				dprint("random node not buildable, check the whole chunk", minetest.pos_to_string(random_pos))
-				local chunk_nodes = plan:get_chunk_nodes(random_pos)
-				dprint("Chunk loaeded: nodes:", #chunk_nodes)
-
-				for idx, nodeplan in ipairs(chunk_nodes) do
-					local node = npc_ai.get_if_buildable(plan, nodeplan.world_pos, nodeplan)
-					if node then
-						selectednode = npc_ai.prefer_target(npcpos, selectednode, node, savedata)
-					end
-				end
-				if selectednode then
-					dprint("found in current chunk: Block "..minetest.pos_to_string(selectednode.world_pos))
-				end
-			end
-		else
-			dprint("something wrong with random_pos")
-		end
-	end
-
-	if selectednode then
-		assert(selectednode.world_pos, "BUG: a position should exists")
-		savedata.last_selection = selectednode
+		dprint("found in current chunk: NPC: "..minetest.pos_to_string(npcpos).." Block "..minetest.pos_to_string(selectednode:get_world_pos()))
+		self.lasttarget_name = selectednode:get_mapped().name
+		self.lasttarget_pos = selectednode:get_world_pos()
 		return selectednode
 	else
-		dprint("no next node found", plan.data.nodecount)
+		dprint("current chunk nothing found")
+	end
+
+	dprint("get random node")
+	local random_node = self.plan:get_node_random()
+	if random_node then
+		dprint("---check chunk", minetest.pos_to_string(random_node.plan_pos))
+		selectednode = self:get_if_buildable(random_node)
+		if selectednode then
+			dprint("random node: Block "..minetest.pos_to_string(random_node.plan_pos))
+		else
+			dprint("random node not buildable, check the whole chunk", minetest.pos_to_string(random_node.plan_pos))
+			local chunk_nodes, min_world_pos, max_world_pos = self.plan:get_chunk_nodes(random_node.plan_pos)
+			dprint("Chunk loaeded: nodes:", #chunk_nodes)
+			selectednode = self:prefer_target(npcpos, chunk_nodes)
+			if selectednode then
+				dprint("found in current chunk: Block "..minetest.pos_to_string(selectednode:get_world_pos()))
+			end
+		end
+	else
+		dprint("something wrong with random node")
+	end
+	if selectednode then
+		self.lasttarget_name = selectednode:get_mapped().name
+		self.lasttarget_pos = selectednode:get_world_pos()
+		return selectednode
+	else
+		dprint("no next node found", self.plan.data.nodecount)
 	end
 end
 
-function npc_ai.place_node(targetnode)
-	dprint("target reached - build", targetnode.name, minetest.pos_to_string(targetnode.world_pos))
+
+function npc_ai_class:place_node(targetnode)
+	dprint("target reached - build", targetnode.name, minetest.pos_to_string(targetnode:get_world_pos()))
+	local mapped = targetnode:get_mapped()
 	local soundspec
-	if minetest.registered_items[targetnode.name].sounds then
-		soundspec = minetest.registered_items[targetnode.name].sounds.place
-	elseif targetnode.name == "air" then --TODO: should be determinated on old node, if the material handling is implemented
+	if minetest.registered_items[mapped.name].sounds then
+		soundspec = minetest.registered_items[mapped.name].sounds.place
+	elseif mapped.name == "air" then --TODO: should be determinated on old node, if the material handling is implemented
 		soundspec = default.node_sound_leaves_defaults({place = {name = "default_place_node", gain = 0.25}})
 	end
 	if soundspec then
-		soundspec.pos = targetnode.world_pos
+		soundspec.pos = targetnode:get_world_pos()
 		minetest.sound_play(soundspec.name, soundspec)
 	end
-	minetest.env:add_node(targetnode.world_pos, targetnode)
-	if targetnode.meta then
-		minetest.env:get_meta(targetnode.world_pos):from_table(targetnode.meta)
-	end
+	targetnode:place()
 end
-
 
 return npc_ai
