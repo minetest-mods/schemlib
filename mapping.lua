@@ -1,6 +1,6 @@
 -- debug-print
-local dprint = print
---local dprint = function() return end
+--local dprint = print
+local dprint = function() return end
 
 local mapping = {}
 
@@ -111,6 +111,8 @@ c["xpanes:pane_5"]               = { name = "xpanes:pane_flat", param2 = 0 } --u
 c["xpanes:pane_10"]              = { name = "xpanes:pane_flat", param2 = 1 } --unsure
 
 c["default:torch"]               = { custom_function = __torches_compat }
+c["torches:wall"]                = { name = "default:torch_wall" }
+
 -----------------------------------------------
 -- copy table of mapping entry
 -----------------------------------------------
