@@ -72,7 +72,6 @@ License: LGPLv2
   - node_obj.data         - table with original param2 / meta / prob
 
     assigned in plan:add_node(plan_pos, node_obj) method
-  - node_obj.plan_pos     - node position in plan
   - node_obj.plan         - assigned plan
   - node_obj.nodeinfo     - assigned nodeinfo in plan
 

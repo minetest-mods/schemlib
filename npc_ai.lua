@@ -1,5 +1,5 @@
---local dprint = print
-local dprint = function() return end
+local dprint = print
+--local dprint = function() return end
 
 local mapping = schemlib.mapping
 
@@ -206,15 +206,15 @@ function npc_ai_class:plan_target_get(npcpos)
 	end
 
 	dprint("get random node")
-	local random_node = self.plan:get_node_random()
-	if random_node then
-		dprint("---check chunk", minetest.pos_to_string(random_node.plan_pos))
-		selectednode = self:get_if_buildable(random_node)
+	local random_pos = self.plan:get_random_plan_pos()
+	if random_pos then
+		dprint("---check chunk", minetest.pos_to_string(random_pos))
+		selectednode = self:get_if_buildable(self.plan:get_node(random_pos))
 		if selectednode then
-			dprint("random node: Block "..minetest.pos_to_string(random_node.plan_pos))
+			dprint("random node: Block "..minetest.pos_to_string(random_pos))
 		else
-			dprint("random node not buildable, check the whole chunk", minetest.pos_to_string(random_node.plan_pos))
-			local chunk_nodes, min_world_pos, max_world_pos = self.plan:get_chunk_nodes(random_node.plan_pos)
+			dprint("random node not buildable, check the whole chunk", minetest.pos_to_string(random_pos))
+			local chunk_nodes, min_world_pos, max_world_pos = self.plan:get_chunk_nodes(random_pos)
 			dprint("Chunk loaeded: nodes:", #chunk_nodes)
 			selectednode = self:prefer_target(npcpos, chunk_nodes)
 			if selectednode then
