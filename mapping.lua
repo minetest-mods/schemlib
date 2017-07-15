@@ -1,6 +1,6 @@
 -- debug-print
---local dprint = print
-local dprint = function() return end
+local dprint = print
+--local dprint = function() return end
 
 local mapping = {}
 
