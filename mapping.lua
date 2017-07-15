@@ -26,6 +26,19 @@ local function __param2_wallmounted_to_facedir(nodeinfo, pos, wpos)
 	end
 end
 
+
+local function __torches_compat(nodeinfo, pos, wpos)
+
+-- from default:3dtorch-lbm
+	if nodeinfo.param2 == 0 then
+		nodeinfo.name = "default:torch_ceiling"
+	elseif nodeinfo.param2 == 1 then
+		nodeinfo.name = "default:torch"
+	else
+		nodeinfo.name = "default:torch_wall"
+	end
+end
+
 local u = {}
 local unknown_nodes_data = u
 -- Fallback nodes replacement of unknown nodes
@@ -40,28 +53,28 @@ u["homedecor:refrigerator"]   = { name = "homedecor:refrigerator_steel" }
 
 u["ethereal:green_dirt"] = { name = "default:dirt_with_grass" }
 
-u["doors:door_wood_b_c"] = {name = "doors:door_wood_b", {["meta"] = {["fields"] = {["state"] = "0"}}}, custom_function = __param2_wallmounted_to_facedir } --closed
-u["doors:door_wood_b_o"] = {name = "doors:door_wood_b", {["meta"] = {["fields"] = {["state"] = "1"}}}, custom_function = __param2_wallmounted_to_facedir } --open
-u["doors:door_wood_b_1"] = {name = "doors:door_wood_b", {["meta"] = {["fields"] = {["state"] = "0"}}}} --closed
-u["doors:door_wood_b_2"] = {name = "doors:door_wood_b", {["meta"] = {["fields"] = {["state"] = "3"}}}} --closed / reversed ??
+u["doors:door_wood_b_c"] = {name = "doors:door_wood_a", {["meta"] = {["fields"] = {["state"] = "1"}}}, custom_function = __param2_wallmounted_to_facedir } --closed
+u["doors:door_wood_b_o"] = {name = "doors:door_wood_b", {["meta"] = {["fields"] = {["state"] = "3"}}}, custom_function = __param2_wallmounted_to_facedir } --open
+u["doors:door_wood_b_1"] = {name = "doors:door_wood_a", {["meta"] = {["fields"] = {["state"] = "0"}}}} --Left door closed
+u["doors:door_wood_b_2"] = {name = "doors:door_wood_b", {["meta"] = {["fields"] = {["state"] = "2"}}}} --right door closed
 u["doors:door_wood_a_c"] = {name = "doors:hidden" }
 u["doors:door_wood_a_o"] = {name = "doors:hidden" }
 u["doors:door_wood_t_1"] = {name = "doors:hidden" }
 u["doors:door_wood_t_2"] = {name = "doors:hidden" }
 
-u["doors:door_glass_b_c"] = {name = "doors:door_glass_b", {["meta"] = {["fields"] = {["state"] = "0"}}}, custom_function = __param2_wallmounted_to_facedir } --closed
-u["doors:door_glass_b_o"] = {name = "doors:door_glass_b", {["meta"] = {["fields"] = {["state"] = "1"}}}, custom_function = __param2_wallmounted_to_facedir } --open
-u["doors:door_glass_b_1"] = {name = "doors:door_glass_b", {["meta"] = {["fields"] = {["state"] = "0"}}}} --closed
-u["doors:door_glass_b_2"] = {name = "doors:door_glass_b", {["meta"] = {["fields"] = {["state"] = "3"}}}} --closed / reversed ??
+u["doors:door_glass_b_c"] = {name = "doors:door_glass_a", {["meta"] = {["fields"] = {["state"] = "1"}}}, custom_function = __param2_wallmounted_to_facedir } --closed
+u["doors:door_glass_b_o"] = {name = "doors:door_glass_b", {["meta"] = {["fields"] = {["state"] = "3"}}}, custom_function = __param2_wallmounted_to_facedir } --open
+u["doors:door_glass_b_1"] = {name = "doors:door_glass_a", {["meta"] = {["fields"] = {["state"] = "0"}}}} --Left door closed
+u["doors:door_glass_b_2"] = {name = "doors:door_glass_b", {["meta"] = {["fields"] = {["state"] = "2"}}}} --right door closed
 u["doors:door_glass_a_c"] = {name = "doors:hidden" }
 u["doors:door_glass_a_o"] = {name = "doors:hidden" }
 u["doors:door_glass_t_1"] = {name = "doors:hidden" }
 u["doors:door_glass_t_2"] = {name = "doors:hidden" }
 
-u["doors:door_steel_b_c"] = {name = "doors:door_steel_b", {["meta"] = {["fields"] = {["state"] = "0"}}}, custom_function = __param2_wallmounted_to_facedir } --closed
-u["doors:door_steel_b_o"] = {name = "doors:door_steel_b", {["meta"] = {["fields"] = {["state"] = "1"}}}, custom_function = __param2_wallmounted_to_facedir } --open
-u["doors:door_steel_b_1"] = {name = "doors:door_steel_b", {["meta"] = {["fields"] = {["state"] = "0"}}}} --closed
-u["doors:door_steel_b_2"] = {name = "doors:door_steel_b", {["meta"] = {["fields"] = {["state"] = "3"}}}} --closed / reversed ??
+u["doors:door_steel_b_c"] = {name = "doors:door_steel_a", {["meta"] = {["fields"] = {["state"] = "1"}}}, custom_function = __param2_wallmounted_to_facedir } --closed
+u["doors:door_steel_b_o"] = {name = "doors:door_steel_b", {["meta"] = {["fields"] = {["state"] = "3"}}}, custom_function = __param2_wallmounted_to_facedir } --open
+u["doors:door_steel_b_1"] = {name = "doors:door_steel_a", {["meta"] = {["fields"] = {["state"] = "0"}}}} --Left door closed
+u["doors:door_steel_b_2"] = {name = "doors:door_steel_b", {["meta"] = {["fields"] = {["state"] = "2"}}}} --right door closed
 u["doors:door_steel_a_c"] = {name = "doors:hidden" }
 u["doors:door_steel_a_o"] = {name = "doors:hidden" }
 u["doors:door_steel_t_1"] = {name = "doors:hidden" }
@@ -93,9 +106,11 @@ c["default:dirt_with_dry_grass"] = { cost_item = "default:dirt" }
 c["default:dirt_with_grass"]     = { cost_item = "default:dirt" }
 c["default:dirt_with_snow"]      = { cost_item = "default:dirt" }
 
+-- Changed with MTG-0.4.16
 c["xpanes:pane_5"]               = { name = "xpanes:pane_flat", param2 = 0 } --unsure
 c["xpanes:pane_10"]              = { name = "xpanes:pane_flat", param2 = 1 } --unsure
 
+c["default:torch"]               = { custom_function = __torches_compat }
 -----------------------------------------------
 -- copy table of mapping entry
 -----------------------------------------------
@@ -196,7 +211,7 @@ function mapping.map(name)
 	end
 
 	local node_def = minetest.registered_nodes[mr.name]
-
+	mr.node_def = node_def
 	-- determine cost_item
 	if not mr.cost_item then
 		--Check for price or if it is free
