@@ -43,8 +43,13 @@ License: LGPLv2
        (add_max, add_min, add_top) - Fill a building with air (done)
   - plan_obj:do_add_chunk(plan_pos) - Place all nodes for chunk in real world
   - plan_obj:do_add_chunk_voxel(plan_pos)   - Place all nodes for chunk in real world using voxelmanip (TODO)
+  - plan_obj:get_status()          - get the plan status. Returns values are "new", "build" and "finished"
+  - plan_obj:set_status(status)    - set the plan status. Created plan is new, allowed new stati are "build" and "finished"
 
-#### Attributes
+### Hooks
+  - plan_obj:on_status()           - if defined, is called from get_plan_status() to get custom updates
+
+### Attributes
   - plan_obj.plan_id    - a id of the plan
   - plan_obj.status     - plan status
   - plan_obj.anchor_pos - position vector in world

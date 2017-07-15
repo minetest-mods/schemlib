@@ -235,8 +235,9 @@ end
 
 
 function npc_ai_class:place_node(targetnode)
-	dprint("target reached - build", targetnode.name, minetest.pos_to_string(targetnode:get_world_pos()))
 	local mapped = targetnode:get_mapped()
+	local pos = targetnode:get_world_pos()
+	dprint("target reached - build", targetnode.name, minetest.pos_to_string(pos))
 	local soundspec
 	if minetest.registered_items[mapped.name].sounds then
 		soundspec = minetest.registered_items[mapped.name].sounds.place
@@ -244,7 +245,7 @@ function npc_ai_class:place_node(targetnode)
 		soundspec = default.node_sound_leaves_defaults({place = {name = "default_place_node", gain = 0.25}})
 	end
 	if soundspec then
-		soundspec.pos = targetnode:get_world_pos()
+		soundspec.pos = pos
 		minetest.sound_play(soundspec.name, soundspec)
 	end
 	targetnode:place()

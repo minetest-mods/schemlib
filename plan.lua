@@ -33,6 +33,7 @@ function plan.new(plan_id , anchor_pos)
 	self.data.scm_data_cache = {}
 	self.data.nodeinfos = {}
 	self.data.nodecount = 0
+	self.status = "new"
 	return self -- the plan object
 end
 
@@ -537,6 +538,26 @@ function plan_class:do_add_chunk_voxel(plan_pos)
 				minetest.get_meta(world_pos):from_table(mapped.meta)
 			end
 		end, meta_fix, on_construct_fix)
+	end
+end
+
+function plan_class:get_status()
+	if self.status == "build" then
+		if self.data.nodecount == 0 then
+			dprint("finished by nodecount 0 in get_status")
+			self.status = "finished"
+		end
+	end
+	if self.on_status then -- trigger updates trough this hook
+		self:on_status(self.status)
+	end
+	return self.status
+end
+
+function plan_class:set_status(status)
+	self.status = status
+	if self.on_status then -- trigger updates trough this hook
+		self:on_status(self.status)
 	end
 end
 ------------------------------------------
