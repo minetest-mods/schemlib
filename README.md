@@ -25,18 +25,15 @@ License: LGPLv2
   - plan_obj = schemlib.plan.new([plan_id][,anchor_pos])    - Constructor - create a new plan object
 
 ### object methods
-  - plan_obj:add_node(plan_pos, node, adjustment)  - add a node to plan - if adjustment is given, the min/max and ground_y is calculated
+  - plan_obj:add_node(plan_pos, node)       - add a node to plan - if adjustment is given, the min/max and ground_y is calculated
+  - plan_obj:adjust_building_info(plan_pos, node) - adjust bilding size and ground information
   - plan_obj:get_node(plan_pos)             - get a node from plan (done)
   - plan_obj:del_node(plan_pos)             - delete a node from plan (done)
-  - plan_obj:get_node_next_to_pos(plan_pos) - get the nearest node to pos (low-prio)
-  - plan_obj:get_node_random()              - get a random existing plan_pos from plan (done)
+  - plan_obj:get_random_plan_pos()          - get a random existing plan_pos from plan (done)
   - plan_obj:get_chunk_nodes(plan_pos)      - get a list of all nodes from chunk of a pos (done)
   - plan_obj:read_from_schem_file(file)     - read from WorldEdit or mts file (done)
   - plan_obj:get_world_pos(plan_pos[,anchor_pos]) - get a world position for a plan position (done)
   - plan_obj:get_plan_pos(world_pos[,anchor_pos]) - get a plan position for a world position (done)
-  - plan_obj:get_buildable_node(plan_pos)   - get a plan node ready to build (done)
-  - plan_obj:load_plan()                    - load a plan state from file in world-directory (low-prio) (:scm_data_cache)
-  - plan_obj:save_plan()                    - store the current plan to a file in world directory and set them valid (low-prio) (:scm_data_cache)
   - plan_obj:propose_anchor(world_pos, bool, add_xz, add_y)
                                    - propose anchor pos nearly given world_pos to be placed.
                                      if bool is given true a check will be done to prevent overbuilding of existing structures
@@ -44,8 +41,8 @@ License: LGPLv2
                                    - returns "false, world_pos" in case of error. The world_pos is the issued not buildable position in this case
   - plan_obj:apply_flood_with_air
        (add_max, add_min, add_top) - Fill a building with air (done)
-  - plan_obj:do_add_chunk(plan_pos)         - Place a node (done)
-  - plan_obj:do_add_chunk_voxel(plan_pos)   - Place a node (done)
+  - plan_obj:do_add_chunk(plan_pos) - Place all nodes for chunk in real world
+  - plan_obj:do_add_chunk_voxel(plan_pos)   - Place all nodes for chunk in real world using voxelmanip (TODO)
 
 #### Attributes
   - plan_obj.plan_id    - a id of the plan
