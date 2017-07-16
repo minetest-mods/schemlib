@@ -20,18 +20,6 @@ function npc_ai.new(plan, build_distance)
 end
 
 --------------------------------------
---	Load a region to ve able to see things
---------------------------------------
-function npc_ai_class:load_region(min_world_pos, max_world_pos)
-	self.vm = minetest.get_voxel_manip()
-	self.vm_minp, self.vm_maxp = self.vm:read_from_map(min_world_pos, max_world_pos)
-	self.vm_area = VoxelArea:new({MinEdge = self.vm_minp, MaxEdge = self.vm_maxp})
-	self.vm_data = self.vm:get_data()
-	self.vm_param2_data = self.vm:get_param2_data()
-end
-
-
---------------------------------------
 --	Check if the node from plan already built in the world
 --------------------------------------
 function npc_ai_class:get_if_buildable(node)
@@ -60,14 +48,14 @@ function npc_ai_class:get_if_buildable(node)
 	local node_index
 	local world_content_id
 
-	if self.vm_area then
-		node_index = self.vm_area:indexp(world_pos)
-		world_content_id = self.vm_data[node_index]
+	if self.plan.vm_area then
+		node_index = self.plan.vm_area:indexp(world_pos)
+		world_content_id = self.plan.vm_data[node_index]
 	end
 	if not world_content_id then
-		self:load_region(world_pos, world_pos)
-		node_index = self.vm_area:indexp(world_pos)
-		world_content_id = self.vm_data[node_index]
+		self.plan:load_region(world_pos, world_pos)
+		node_index = self.plan.vm_area:indexp(world_pos)
+		world_content_id = self.plan.vm_data[node_index]
 	end
 	if not world_content_id then
 		return nil --something wrong
@@ -75,7 +63,7 @@ function npc_ai_class:get_if_buildable(node)
 	node.world_node_name = minetest.get_name_from_content_id(world_content_id)
 	if world_content_id == mapped.content_id then
 		-- right node is at the place. there are no costs to touch them. Check if a touch needed
-		if mapped.param2 ~= self.vm_param2_data[node_index] then
+		if mapped.param2 ~= self.plan.vm_param2_data[node_index] then
 			--param2 adjustment
 			return node
 		elseif not mapped.meta or mapping.is_equal_meta(minetest.get_meta(world_pos):to_table(), mapped.meta) then
@@ -191,7 +179,7 @@ function npc_ai_class:plan_target_get(npcpos)
 			end
 		end
 	end
-	self:load_region(vector.subtract(npcpos_round, first_distance), vector.add(npcpos_round, first_distance))
+	self.plan:load_region(vector.subtract(npcpos_round, first_distance), vector.add(npcpos_round, first_distance))
 	selectednode = self:prefer_target(npcpos, prefer_list)
 	if selectednode then
 		dprint("nearly found: NPC: "..minetest.pos_to_string(npcpos).." Block "..minetest.pos_to_string(selectednode:get_world_pos()))
@@ -210,7 +198,7 @@ function npc_ai_class:plan_target_get(npcpos)
 		table.insert(chunk_nodes, self.plan:get_node(self.lasttarget_pos))
 	end
 	dprint("Chunk loaeded: nodes:", #chunk_nodes)
-	self:load_region(min_world_pos, max_world_pos)
+	self.plan:load_region(min_world_pos, max_world_pos)
 	selectednode = self:prefer_target(npcpos, chunk_nodes)
 	if selectednode then
 		dprint("found in current chunk: NPC: "..minetest.pos_to_string(npcpos).." Block "..minetest.pos_to_string(selectednode:get_world_pos()))

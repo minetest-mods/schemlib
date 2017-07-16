@@ -473,6 +473,16 @@ function plan_class:do_add_chunk(plan_pos)
 	end
 end
 
+--------------------------------------
+--	Load a region to the voxel
+--------------------------------------
+function plan_class:load_region(min_world_pos, max_world_pos)
+	self._vm = minetest.get_voxel_manip()
+	self._vm_minp, self._vm_maxp = self._vm:read_from_map(min_world_pos, max_world_pos)
+	self.vm_area = VoxelArea:new({MinEdge = self._vm_minp, MaxEdge = self._vm_maxp})
+	self.vm_data = self._vm:get_data()
+	self.vm_param2_data = self._vm:get_param2_data()
+end
 
 --------------------------------------
 ---add/build a chunk using VoxelArea
@@ -481,26 +491,21 @@ function plan_class:do_add_chunk_voxel(plan_pos)
 	local chunk_pos = self:get_world_pos(plan_pos)
 	dprint("---build chunk using voxel", minetest.pos_to_string(plan_pos))
 
-	-- work on VoxelArea
-	local vm = minetest.get_voxel_manip()
-	local minp, maxp = vm:read_from_map(chunk_pos, chunk_pos)
-	local a = VoxelArea:new({MinEdge = minp, MaxEdge = maxp})
-	local data = vm:get_data()
-	local param2_data = vm:get_param2_data()
+	self:load_region(chunk_pos, chunk_pos)
+
 	local meta_fix = {}
 	local on_construct_fix = {}
 
---		for idx in a:iterp(vector.add(minp, 8), vector.subtract(maxp, 8)) do -- do not touch for beter light update
-	for idx, origdata in pairs(data) do -- do not touch for beter light update
-		local wpos = a:position(idx)
+	for idx, origdata in pairs(self.vm_data) do
+		local wpos = self.vm_area:position(idx)
 		local pos = self:get_plan_pos(wpos)
 		local node = self:get_node(pos)
 		if node then
 			local mapped = node:get_mapped()
 			if mapped and mapped.content_id then
 				-- write to voxel
-				data[idx] = mapped.content_id
-				param2_data[idx] = mapped.param2
+				self.vm_data[idx] = mapped.content_id
+				self.vm_param2_data[idx] = mapped.param2
 
 				-- Call the constructor
 				if mapped.node_def.on_construct then
@@ -517,12 +522,12 @@ function plan_class:do_add_chunk_voxel(plan_pos)
 	end
 
 	-- store the changed map data
-	vm:set_data(data)
-	vm:set_param2_data(param2_data)
-	vm:calc_lighting()
-	vm:update_liquids()
-	vm:write_to_map()
-	vm:update_map()
+	self._vm:set_data(self.vm_data)
+	self._vm:set_param2_data(self.vm_param2_data)
+	self._vm:calc_lighting()
+	self._vm:update_liquids()
+	self._vm:write_to_map()
+	self._vm:update_map()
 
 	-- fix the nodes
 	if  #meta_fix then

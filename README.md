@@ -59,6 +59,7 @@ License: LGPLv2
   - plan_obj.data.groundnode_count - count of nodes found for ground_y determination (internal)
   - plan_obj.data.min_pos        - minimal {x,y,z} vector
   - plan_obj.data.max_pos        - maximal {x,y,z} vector
+  - plan_obj:load_region(min_world_pos, max_world_pos) - Load a Voxel-Manip for faster lookups to the real world
 
 ## Node object
 ### class-methods
@@ -93,7 +94,6 @@ License: LGPLv2
   - npc_ai_obj:place_node(node_obj) - Place the node and remove from plan
 
     next methods internally used in plan_target_get
-  - npc_ai_obj:load_region(min_world_pos, max_world_pos) - Load a Voxel-Manip for faster lookups to the real world
   - npc_ai_obj:get_if_buildable(node_obj)  - Check the node_obj if it can be built in the world. Compares if similar node already at the place
   - npc_ai_obj:get_node_rating(node, npcpos) - internally used - rate a node for importance to build at the next
   - npc_ai_obj:prefer_target(npcpos, nodeslist) - Does rating of all nodes in nodeslist and returns the highest rated node
