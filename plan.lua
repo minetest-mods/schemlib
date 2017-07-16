@@ -311,7 +311,6 @@ end
 -- Generate a plan from schematics file
 --------------------------------------
 function plan_class:read_from_schem_file(filename)
-
 	-- Minetest Schematics
 	if string.find(filename, '.mts',  -4) then
 		local str = minetest.serialize_schematic(filename, "lua", {})
@@ -360,13 +359,13 @@ end
 --Propose anchor position for the plan
 --------------------------------------
 function plan_class:propose_anchor(world_pos, do_check, add_y, add_xz)
-	add_xz = add_xz or 3
-	add_y = add_y or 5
+	add_xz = add_xz or 4
+	add_y = add_y or 8
 	local minp = self:get_world_pos(self.data.min_pos, world_pos)
 	local maxp = self:get_world_pos(self.data.max_pos, world_pos)
 
 	-- to get some randomization for error-node
-	local minx, maxx, stx, minz, maxz, stz
+	local minx, maxx, stx, miny, maxy, minz, maxz, stz
 	if math.random(2) == 1 then
 		minx = minp.x-add_xz
 		maxx = maxp.x+add_xz
@@ -392,46 +391,33 @@ function plan_class:propose_anchor(world_pos, do_check, add_y, add_xz)
 	else
 		stz = -1
 	end
-
-	-- TODO: check for overlaps to other not builded plans
-	-- TODO: get the additional values as parameter
-	local function is_vegetation(nodedef)
-		if nodedef.groups.leaves or
-				nodedef.groups.leafdecay or
-				nodedef.groups.tree then
-			return true
-		else
-			return false
-		end
-	end
-
+	miny = minp.y-add_y
+	maxy = maxp.y+add_y
 	-- only "y" needs to be proposed as usable ground
 	local ground_y
 	local groundnode_count = 0
+	self:load_region({x=minx, y=miny, z=minz}) --first region
 
 	for x = minx, maxx, stx do
 		for z = minz, maxz, stz do
 			local is_ground = true
-			for y = minp.y-add_y, maxp.y+add_y, 1 do
+			for y = miny, maxy, 1 do
 				local pos = {x=x, y=y, z=z}
-				local node = minetest.get_node(pos)
-				if node.name == "ignore" then
-					minetest.get_voxel_manip():read_from_map(pos, pos)
-					node = minetest.get_node(pos)
+				if not self.vm_area:contains(x, y, z) then
+					self:load_region(pos, pos)
 				end
-				local nodedef = minetest.registered_nodes[node.name]
-				if do_check and nodedef and
-						nodedef.is_ground_content == false and -- override denied
-						is_vegetation(nodedef) == false then -- allow removal of trees
-					dprint("build denied because of not overridable", node.name, "at", x..':'..z)
-					return false, {x=x, y=y, z=z}
+				local node_index = self.vm_area:indexp(pos)
+				local content_id = self.vm_data[node_index]
+				--print(x,y,z,minetest.get_name_from_content_id(content_id))
+				if do_check and plan._protected_content_ids[content_id] then
+					dprint("build denied because of not overridable", minetest.get_name_from_content_id(content_id), "at", x,y,z)
+					return false, pos
 				end
 
-				if 	node.name == "air" or node.name == "default:snow" or node.name == "default:snowblock" or
-						nodedef and (nodedef.walkable == false or nodedef.drawtype == "airlike" or is_vegetation(nodedef)) then
-					if y == minp.y-add_y then
-						dprint("build denied because hanging in air at", x..':'..z)
-						return false, {x=x, y=y, z=z}
+				if plan._over_surface_content_ids[content_id] then
+					if y == miny then
+						dprint("build denied because hanging in",minetest.get_name_from_content_id(content_id), "at", x,y,z)
+						return false, pos
 					end
 					if is_ground == true then --only if ground above
 						groundnode_count = groundnode_count + 1
@@ -449,14 +435,14 @@ function plan_class:propose_anchor(world_pos, do_check, add_y, add_xz)
 			end
 			if is_ground ~= false then --nil is air only (no ground), true is ground only (no air)
 				-- air only or non-air only. Not buildable
-				dprint("build denied because ground only at", x..':'..z)
+				dprint("build denied because ground only at", x,y,z)
 				return false, {x=x, y=world_pos.y, z=z}
 			end
 		end
 	end
 
 	if ground_y then
---TODO: additional do_check of maybe existing delta to new ground_y is not implemented!
+		dprint("proposed anchor high", ground_y)
 		return {x=world_pos.x, y=math.floor(ground_y+0.5), z=world_pos.z}
 	end
 end
@@ -477,6 +463,9 @@ end
 --	Load a region to the voxel
 --------------------------------------
 function plan_class:load_region(min_world_pos, max_world_pos)
+	if not max_world_pos then
+		max_world_pos = min_world_pos
+	end
 	self._vm = minetest.get_voxel_manip()
 	self._vm_minp, self._vm_maxp = self._vm:read_from_map(min_world_pos, max_world_pos)
 	self.vm_area = VoxelArea:new({MinEdge = self._vm_minp, MaxEdge = self._vm_maxp})
@@ -527,7 +516,6 @@ function plan_class:do_add_chunk_voxel(plan_pos)
 	self._vm:calc_lighting()
 	self._vm:update_liquids()
 	self._vm:write_to_map()
-	self._vm:update_map()
 
 	-- fix the nodes
 	if  #meta_fix then
@@ -565,5 +553,31 @@ function plan_class:set_status(status)
 		self:on_status(self.status)
 	end
 end
+------------------------------------------
+-- Cache some node content ID
+plan._protected_content_ids = {}
+plan._over_surface_content_ids = {}
+minetest.after(0, function()
+
+	for name, def in pairs(minetest.registered_nodes) do
+		-- protected nodes
+		if def.is_ground_content == false and not
+				(def.groups.leaves or def.groups.leafdecay or def.groups.tree) then
+			plan._protected_content_ids[minetest.get_content_id(name)] = name
+		end
+
+		-- usual first node over surface
+		if def.walkable == false or def.drawtype == "airlike" or
+				def.groups.flora or def.groups.flower or
+				def.groups.leaves or def.groups.leafdecay
+				or def.groups.tree then
+			plan._over_surface_content_ids[minetest.get_content_id(name)] = name
+		end
+	end
+
+	plan._over_surface_content_ids[minetest.get_content_id("air")] = "air"
+	plan._over_surface_content_ids[minetest.get_content_id("default:snow")] = "default:snow"
+	plan._over_surface_content_ids[minetest.get_content_id("default:snowblock")] = "default:snowblock"
+end)
 ------------------------------------------
 return plan
