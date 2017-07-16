@@ -45,6 +45,7 @@ License: LGPLv2
   - plan_obj:do_add_chunk_voxel(plan_pos)   - Place all nodes for chunk in real world using voxelmanip (TODO)
   - plan_obj:get_status()          - get the plan status. Returns values are "new", "build" and "finished"
   - plan_obj:set_status(status)    - set the plan status. Created plan is new, allowed new stati are "build" and "finished"
+  - plan_obj:load_region(min_world_pos[, max_world_pos]) - Load a Voxel-Manip for faster lookups to the real world
 
 ### Hooks
   - plan_obj:on_status()           - if defined, is called from get_plan_status() to get custom updates
@@ -59,7 +60,6 @@ License: LGPLv2
   - plan_obj.data.groundnode_count - count of nodes found for ground_y determination (internal)
   - plan_obj.data.min_pos        - minimal {x,y,z} vector
   - plan_obj.data.max_pos        - maximal {x,y,z} vector
-  - plan_obj:load_region(min_world_pos, max_world_pos) - Load a Voxel-Manip for faster lookups to the real world
 
 ## Node object
 ### class-methods

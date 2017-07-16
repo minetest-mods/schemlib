@@ -48,18 +48,12 @@ function npc_ai_class:get_if_buildable(node)
 	local node_index
 	local world_content_id
 
-	if self.plan.vm_area then
-		node_index = self.plan.vm_area:indexp(world_pos)
-		world_content_id = self.plan.vm_data[node_index]
+	if not self.plan.vm_area or not self.plan.vm_area:contains(world_pos.x, world_pos.y, world_pos.z) then
+		self.plan:load_region(world_pos)
 	end
-	if not world_content_id then
-		self.plan:load_region(world_pos, world_pos)
-		node_index = self.plan.vm_area:indexp(world_pos)
-		world_content_id = self.plan.vm_data[node_index]
-	end
-	if not world_content_id then
-		return nil --something wrong
-	end
+	node_index = self.plan.vm_area:indexp(world_pos)
+	world_content_id = self.plan.vm_data[node_index]
+
 	node.world_node_name = minetest.get_name_from_content_id(world_content_id)
 	if world_content_id == mapped.content_id then
 		-- right node is at the place. there are no costs to touch them. Check if a touch needed
