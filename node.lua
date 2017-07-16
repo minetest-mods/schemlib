@@ -81,6 +81,7 @@ function node_class:get_mapped()
 
 	mapped.content_id = minetest.get_content_id(mapped.name)
 	self.mapped = mapped
+	self.cost_item = mapped.cost_item -- workaround / backwards compatibility to npcf_builder
 	return mapped
 end
 
@@ -112,7 +113,9 @@ function node_class:place()
 			minetest.get_meta(world_pos):from_table(mapped.meta)
 		end
 	end
-	self:remove_from_plan()
+	if not self.final_node_name then
+		self:remove_from_plan()
+	end
 end
 
 --------------------------------------

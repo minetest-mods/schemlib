@@ -39,6 +39,14 @@ function npc_ai_class:get_if_buildable(node)
 		return
 	end
 
+	--revert the final mapping if happens alrady
+	--The NPC does bild the "name" so it is replaced by air in case the place needs to be cleared first
+	if node.final_node_name then
+		node.name = node.final_node_name
+		node.nodeinfo = self.plan.data.nodeinfos[node.name]
+		node.final_node_name = nil
+	end
+
 	-- check if already built
 	local mapped = node:get_mapped()
 	if not mapped then
@@ -59,17 +67,18 @@ function npc_ai_class:get_if_buildable(node)
 		node_index = self.vm_area:indexp(world_pos)
 	end
 
-	if self.vm_data[node_index] == mapped.content_id then
+	local world_content_id = self.vm_data[node_index]
+	if not world_content_id then
+		return nil --something wrong
+	end
+	node.world_node_name = minetest.get_name_from_content_id(world_content_id)
+	if world_content_id == mapped.content_id then
 		-- right node is at the place. there are no costs to touch them. Check if a touch needed
 		if mapped.param2 ~= self.vm_param2_data[node_index] then
 			--param2 adjustment
 			return node
-		elseif not mapped.meta then
+		elseif not mapped.meta or mapping.is_equal_meta(minetest.get_meta(world_pos):to_table(), mapped.meta) then
 			--same item without metadata. nothing to do
-			node:remove_from_plan()
-			return nil
-		elseif mapping.is_equal_meta(minetest.get_meta(world_pos):to_table(), mapped.meta) then
-			--metadata adjustment
 			node:remove_from_plan()
 			return nil
 		else
@@ -77,6 +86,12 @@ function npc_ai_class:get_if_buildable(node)
 		end
 	else
 		-- no right node at place
+		-- Check if the previous content needs to be replaced
+		if node.world_node_name ~= "air" then
+			node.final_node_name = node.name
+			node.name = "air"
+			node.nodeinfo = self.plan.data.nodeinfos["air"]
+		end
 		return node
 	end
 end
@@ -237,12 +252,14 @@ end
 function npc_ai_class:place_node(targetnode)
 	local mapped = targetnode:get_mapped()
 	local pos = targetnode:get_world_pos()
-	dprint("target reached - build", targetnode.name, minetest.pos_to_string(pos))
+	dprint("target reached - build", mapped.name, targetnode.world_node_name, targetnode.final_node_name, minetest.pos_to_string(pos))
 	local soundspec
-	if minetest.registered_items[mapped.name].sounds then
+	if mapped.name == "air" and targetnode.world_node_name then
+		if minetest.registered_items[targetnode.world_node_name].sounds then
+			soundspec = minetest.registered_items[targetnode.world_node_name].sounds.dug
+		end
+	elseif minetest.registered_items[mapped.name].sounds then
 		soundspec = minetest.registered_items[mapped.name].sounds.place
-	elseif mapped.name == "air" then --TODO: should be determinated on old node, if the material handling is implemented
-		soundspec = default.node_sound_leaves_defaults({place = {name = "default_place_node", gain = 0.25}})
 	end
 	if soundspec then
 		soundspec.pos = pos

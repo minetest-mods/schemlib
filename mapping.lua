@@ -235,8 +235,8 @@ function mapping.map(name)
 		end
 	end
 
-	if mr.cost_item == "" then
-		mr.cost_item = nil
+	if mr.cost_item == "" or mr.cost_item == nil then
+		mr.cost_item = mapping.c_free_item
 	end
 
 	dprint("map", name, "to", mr.name, mr.param2, mr.cost_item)

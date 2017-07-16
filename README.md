@@ -66,7 +66,11 @@ License: LGPLv2
 
 ### object-methods
   - node_obj:get_world_pos() - nodes assigned to plan only
-  - node_obj:get_mapped()    - get mapped data for this node as it should be placed - returns a table {name=, param2=, meta=, content_id=, node_def=}
+  - node_obj:get_mapped()    - get mapped data for this node as it should be placed - returns a table {name=, param2=, meta=, content_id=, node_def=, final_nod_name=}
+    - name, param2, meta   - data used to place node
+    - content_id, node_def - game references, VoxelMap ID and registered_nodes definition
+    - final_node_name      - if set, the node is not deleted from plan by place(). Contains the node name to be placed at the end. used for replacing by air before build the node
+    - world_node_name      - contains the node name currently placed to the world
   - node_obj:place()         - place node to world using "add_node" and remove them from plan (done)
   - node_obj:remove_from_plan() - remove this node from plan
   - node_obj:get_under()     - returns the node under this one if exists in plan
