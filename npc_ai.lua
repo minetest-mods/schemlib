@@ -58,16 +58,17 @@ function npc_ai_class:get_if_buildable(node)
 	-- get the original node from loaded area. Load a chunk if not given
 	local world_pos = node:get_world_pos()
 	local node_index
+	local world_content_id
 
 	if self.vm_area then
 		node_index = self.vm_area:indexp(world_pos)
+		world_content_id = self.vm_data[node_index]
 	end
-	if not node_index then
+	if not world_content_id then
 		self:load_region(world_pos, world_pos)
 		node_index = self.vm_area:indexp(world_pos)
+		world_content_id = self.vm_data[node_index]
 	end
-
-	local world_content_id = self.vm_data[node_index]
 	if not world_content_id then
 		return nil --something wrong
 	end
