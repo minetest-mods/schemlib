@@ -80,6 +80,7 @@ u["doors:door_steel_a_o"] = {name = "doors:hidden" }
 u["doors:door_steel_t_1"] = {name = "doors:hidden" }
 u["doors:door_steel_t_2"] = {name = "doors:hidden" }
 
+u["fallback"] = {name = "air" }
 
 local c = {}
 local default_replacements = c
@@ -166,7 +167,7 @@ function mapping.map_unknown(name)
 	if not map or map.name == name then -- no fallback mapping. don't use the node
 		dprint("mapping failed:", name, dump(map))
 		print("unknown nodes in building", name)
-		return nil
+		return unknown_nodes_data["fallback"]
 	end
 
 	dprint("mapped", name, "to", map.name)
