@@ -74,6 +74,10 @@ function npc_ai_class:get_if_buildable(node)
 			node.final_node_name = node.name
 			node.name = "air"
 			node.nodeinfo = self.plan.data.nodeinfos["air"]
+		elseif mapping._non_removal_nodes[mapped.content_id] then
+			-- removal of this type of node not decessary old/new are _not_removal_nodes
+			node:remove_from_plan()
+			return nil
 		end
 		return node
 	end
@@ -241,14 +245,16 @@ function npc_ai_class:place_node(targetnode)
 		if minetest.registered_items[targetnode.world_node_name].sounds then
 			soundspec = minetest.registered_items[targetnode.world_node_name].sounds.dug
 		end
+		targetnode:place()
+		minetest.check_for_falling(pos)
 	elseif minetest.registered_items[mapped.name].sounds then
 		soundspec = minetest.registered_items[mapped.name].sounds.place
+		targetnode:place()
 	end
 	if soundspec then
 		soundspec.pos = pos
 		minetest.sound_play(soundspec.name, soundspec)
 	end
-	targetnode:place()
 end
 
 return npc_ai
