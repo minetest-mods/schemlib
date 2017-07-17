@@ -241,19 +241,22 @@ function npc_ai_class:place_node(targetnode)
 	local pos = targetnode:get_world_pos()
 	dprint("target reached - build", mapped.name, targetnode.world_node_name, targetnode.final_node_name, minetest.pos_to_string(pos))
 	local soundspec
+	local check_fall = false
 	if mapped.name == "air" and targetnode.world_node_name then
 		if minetest.registered_items[targetnode.world_node_name].sounds then
 			soundspec = minetest.registered_items[targetnode.world_node_name].sounds.dug
 		end
-		targetnode:place()
-		minetest.check_for_falling(pos)
+		check_fall = true
 	elseif minetest.registered_items[mapped.name].sounds then
 		soundspec = minetest.registered_items[mapped.name].sounds.place
-		targetnode:place()
 	end
+	targetnode:place()
 	if soundspec then
 		soundspec.pos = pos
 		minetest.sound_play(soundspec.name, soundspec)
+	end
+	if check_fall then
+		minetest.check_for_falling(pos)
 	end
 end
 
