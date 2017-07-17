@@ -25,29 +25,33 @@ License: LGPLv2
   - plan_obj = schemlib.plan.new([plan_id][,anchor_pos])    - Constructor - create a new plan object
 
 ### object methods
+#### Methods in draft mode (without anchor)
   - plan_obj:add_node(plan_pos, node)       - add a node to plan - if adjustment is given, the min/max and ground_y is calculated
   - plan_obj:adjust_building_info(plan_pos, node) - adjust bilding size and ground information
   - plan_obj:get_node(plan_pos)             - get a node from plan
   - plan_obj:del_node(plan_pos)             - delete a node from plan
   - plan_obj:get_random_plan_pos()          - get a random existing plan_pos from plan
-  - plan_obj:get_chunk_nodes(plan_pos)      - get a list of all nodes from chunk of a pos
   - plan_obj:read_from_schem_file(file)     - read from WorldEdit or mts file
-  - plan_obj:get_world_pos(plan_pos[,anchor_pos]) - get a world position for a plan position
-  - plan_obj:get_world_minp([anchor_pos])   - get lowest world position
-  - plan_obj:get_world_maxp([anchor_pos])   - get highest world position
-  - plan_obj:contains(world_pos[,anchor_pos]) - check if the given world position is in the plan (if anchor assigned)
-  - plan_obj:get_plan_pos(world_pos[,anchor_pos]) - get a plan position for a world position
-  - plan_obj:propose_anchor(world_pos, bool, add_xz, add_y)
+  - plan_obj:propose_anchor(world_pos, bool, add_xz)
                                    - propose anchor pos nearly given world_pos to be placed.
                                      if bool is given true a check will be done to prevent overbuilding of existing structures
-                                     additional space to check for all sites can be given by add_xz (default 3) and add_y (default 5)
+                                     additional space to check for all sites can be given by add_xz (default 3)
                                    - returns "false, world_pos" in case of error. The world_pos is the issued not buildable position in this case
   - plan_obj:apply_flood_with_air
        (add_max, add_min, add_top) - Fill a building with air
-  - plan_obj:do_add_chunk(plan_pos) - Place all nodes for chunk in real world
-  - plan_obj:do_add_chunk_voxel(plan_pos)   - Place all nodes for chunk in real world using voxelmanip
   - plan_obj:get_status()          - get the plan status. Returns values are "new", "build" and "finished"
   - plan_obj:set_status(status)    - set the plan status. Created plan is new, allowed new stati are "build" and "finished"
+
+#### Methods interferring with the real world (anchor_pos exists or needs to be given optional)
+  - plan_obj:get_world_pos(plan_pos[,anchor_pos]) - get a world position for a plan position
+  - plan_obj:get_world_minp([anchor_pos])   - get lowest world position
+  - plan_obj:get_world_maxp([anchor_pos])   - get highest world position
+  - plan_obj:contains(world_pos[,anchor_pos]) - check if the given world position is in the plan
+  - plan_obj:get_plan_pos(world_pos[,anchor_pos]) - get a plan position for a world position
+  - plan_obj:check_overlap(pos1, pos2[,anchor_pos]) - check if the plan overlap the area in pos1/pos2
+  - plan_obj:get_chunk_nodes(plan_pos[,anchor_pos]) - get a list of all nodes from chunk of a pos
+  - plan_obj:do_add_chunk(plan_pos) - Place all nodes for chunk in real world
+  - plan_obj:do_add_chunk_voxel(plan_pos)   - Place all nodes for chunk in real world using voxelmanip
   - plan_obj:load_region(min_world_pos[, max_world_pos]) - Load a Voxel-Manip for faster lookups to the real world
 
 ### Hooks
