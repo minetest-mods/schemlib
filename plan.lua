@@ -456,7 +456,7 @@ function plan_class:propose_anchor(world_pos, do_check, add_xz)
 
 	for x = minx, maxx, stx do
 		for z = minz, maxz, stz do
-			local is_ground = true
+			local is_ground = ((x >= minp.x) or (x <= maxp.x)) and ((z >= minp.z) or (z <= maxp.z)) --ground check on the edges only
 			for y = miny, maxy, 1 do
 				local pos = {x=x, y=y, z=z}
 				local node_index = self.vm_area:indexp(pos)
@@ -468,7 +468,7 @@ function plan_class:propose_anchor(world_pos, do_check, add_xz)
 					return false, pos
 				end
 
-				-- check if surface found
+				-- check if surface found under the building edges
 				if is_ground == true then
 					if mapping._over_surface_content_ids[content_id] then
 						is_ground = false --found
@@ -478,7 +478,7 @@ function plan_class:propose_anchor(world_pos, do_check, add_xz)
 								dprint("max error reached at bottom", x,y,z, error_count, max_error)
 								return false, pos
 							end
-						elseif ((x == minp.x) or (x == maxp.x)) or ((z == minp.z) or (z == maxp.z)) then
+						else
 							-- do not check additional nodes at the sites
 							ground_count = ground_count + 1
 							if not ground_min or ground_min > y then

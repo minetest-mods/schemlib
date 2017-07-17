@@ -278,6 +278,7 @@ minetest.after(0, function()
 	mapping._over_surface_content_ids[minetest.get_content_id("default:snowblock")] = "default:snowblock"
 
 	mapping._non_removal_nodes[minetest.get_content_id("air")] = "air"
+	mapping._non_removal_nodes[minetest.get_content_id("default:snow")] = "default:snow"
 end)
 ------------------------------------------
 
