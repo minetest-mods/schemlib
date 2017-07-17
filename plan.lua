@@ -522,7 +522,8 @@ function plan_class:propose_anchor(world_pos, do_check, add_xz)
 			local max_count_newfaulty = ground_statistics[ground_max + max_bury] or 0
 			-- compare adjustment under or above
 			if (min_count_newfaulty > max_count_newfaulty) or
-					(min_count_newfaulty == max_count_newfaulty) and min_count > max_count then
+					(min_count_newfaulty == max_count_newfaulty) and
+					((min_count > max_count) or ((min_count == max_count) and (math.random(2) == 1))) then
 				ground_max = ground_max - 1
 				error_count = error_count + max_count_newfaulty
 			else
