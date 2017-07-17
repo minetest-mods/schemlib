@@ -35,7 +35,7 @@ License: LGPLv2
   - plan_obj:get_world_pos(plan_pos[,anchor_pos]) - get a world position for a plan position
   - plan_obj:get_world_minp([anchor_pos])   - get lowest world position
   - plan_obj:get_world_maxp([anchor_pos])   - get highest world position
-  - plan_obj:contains(world_pos)            - check if the given world position is in the plan (if anchor assigned)
+  - plan_obj:contains(world_pos[,anchor_pos]) - check if the given world position is in the plan (if anchor assigned)
   - plan_obj:get_plan_pos(world_pos[,anchor_pos]) - get a plan position for a world position
   - plan_obj:propose_anchor(world_pos, bool, add_xz, add_y)
                                    - propose anchor pos nearly given world_pos to be placed.
