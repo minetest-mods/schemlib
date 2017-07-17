@@ -27,22 +27,24 @@ License: LGPLv2
 ### object methods
   - plan_obj:add_node(plan_pos, node)       - add a node to plan - if adjustment is given, the min/max and ground_y is calculated
   - plan_obj:adjust_building_info(plan_pos, node) - adjust bilding size and ground information
-  - plan_obj:get_node(plan_pos)             - get a node from plan (done)
-  - plan_obj:del_node(plan_pos)             - delete a node from plan (done)
-  - plan_obj:get_random_plan_pos()          - get a random existing plan_pos from plan (done)
-  - plan_obj:get_chunk_nodes(plan_pos)      - get a list of all nodes from chunk of a pos (done)
-  - plan_obj:read_from_schem_file(file)     - read from WorldEdit or mts file (done)
-  - plan_obj:get_world_pos(plan_pos[,anchor_pos]) - get a world position for a plan position (done)
-  - plan_obj:get_plan_pos(world_pos[,anchor_pos]) - get a plan position for a world position (done)
+  - plan_obj:get_node(plan_pos)             - get a node from plan
+  - plan_obj:del_node(plan_pos)             - delete a node from plan
+  - plan_obj:get_random_plan_pos()          - get a random existing plan_pos from plan
+  - plan_obj:get_chunk_nodes(plan_pos)      - get a list of all nodes from chunk of a pos
+  - plan_obj:read_from_schem_file(file)     - read from WorldEdit or mts file
+  - plan_obj:get_world_pos(plan_pos[,anchor_pos]) - get a world position for a plan position
+  - plan_obj:get_world_minp([anchor_pos])   - get lowest world position
+  - plan_obj:get_world_maxp([anchor_pos])   - get highest world position
+  - plan_obj:get_plan_pos(world_pos[,anchor_pos]) - get a plan position for a world position
   - plan_obj:propose_anchor(world_pos, bool, add_xz, add_y)
                                    - propose anchor pos nearly given world_pos to be placed.
                                      if bool is given true a check will be done to prevent overbuilding of existing structures
                                      additional space to check for all sites can be given by add_xz (default 3) and add_y (default 5)
                                    - returns "false, world_pos" in case of error. The world_pos is the issued not buildable position in this case
   - plan_obj:apply_flood_with_air
-       (add_max, add_min, add_top) - Fill a building with air (done)
+       (add_max, add_min, add_top) - Fill a building with air
   - plan_obj:do_add_chunk(plan_pos) - Place all nodes for chunk in real world
-  - plan_obj:do_add_chunk_voxel(plan_pos)   - Place all nodes for chunk in real world using voxelmanip (TODO)
+  - plan_obj:do_add_chunk_voxel(plan_pos)   - Place all nodes for chunk in real world using voxelmanip
   - plan_obj:get_status()          - get the plan status. Returns values are "new", "build" and "finished"
   - plan_obj:set_status(status)    - set the plan status. Created plan is new, allowed new stati are "build" and "finished"
   - plan_obj:load_region(min_world_pos[, max_world_pos]) - Load a Voxel-Manip for faster lookups to the real world
@@ -72,7 +74,7 @@ License: LGPLv2
     - content_id, node_def - game references, VoxelMap ID and registered_nodes definition
     - final_node_name      - if set, the node is not deleted from plan by place(). Contains the node name to be placed at the end. used for replacing by air before build the node
     - world_node_name      - contains the node name currently placed to the world
-  - node_obj:place()         - place node to world using "add_node" and remove them from plan (done)
+  - node_obj:place()         - place node to world using "add_node" and remove them from plan
   - node_obj:remove_from_plan() - remove this node from plan
   - node_obj:get_under()     - returns the node under this one if exists in plan
   - node_obj:get_above()     - returns the node above this one if exists in plan

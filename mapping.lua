@@ -243,4 +243,42 @@ function mapping.map(name)
 	return mr
 end
 
+
+------------------------------------------
+-- Cache some node content ID
+mapping._protected_content_ids = {}
+mapping._over_surface_content_ids = {}
+mapping._non_removal_nodes = {}
+
+minetest.after(0, function()
+
+	for name, def in pairs(minetest.registered_nodes) do
+		-- protected nodes
+		if def.is_ground_content == false and not
+				(def.groups.leaves or def.groups.leafdecay or def.groups.tree) then
+			mapping._protected_content_ids[minetest.get_content_id(name)] = name
+		end
+
+		-- usual first node over surface
+		if def.walkable == false or def.drawtype == "airlike" or
+				def.groups.flora or def.groups.flower or
+				def.groups.leaves or def.groups.leafdecay
+				or def.groups.tree then
+			mapping._over_surface_content_ids[minetest.get_content_id(name)] = name
+		end
+
+		-- this nodes needs not to be removed
+		if def.groups.liquid then
+			mapping._non_removal_nodes[minetest.get_content_id(name)] = name
+		end
+	end
+
+	mapping._over_surface_content_ids[minetest.get_content_id("air")] = "air"
+	mapping._over_surface_content_ids[minetest.get_content_id("default:snow")] = "default:snow"
+	mapping._over_surface_content_ids[minetest.get_content_id("default:snowblock")] = "default:snowblock"
+
+	mapping._non_removal_nodes[minetest.get_content_id("air")] = "air"
+end)
+------------------------------------------
+
 return mapping

@@ -1,10 +1,11 @@
 -- debug-print
---local dprint = print
-local dprint = function() return end
+local dprint = print
+--local dprint = function() return end
 
 local save_restore = schemlib.save_restore
 local modpath = schemlib.modpath
 local node = schemlib.node
+local mapping = schemlib.mapping
 
 --------------------------------------
 --	Plan class
@@ -228,6 +229,42 @@ function plan_class:get_world_pos(pos, anchor_pos)
 end
 
 --------------------------------------
+--Get world minimum position relative to plan position
+--------------------------------------
+function plan_class:get_world_minp(anchor_pos)
+	local pos = self:get_world_pos(self.data.min_pos, anchor_pos)
+	local pos2 = self:get_world_pos(self.data.max_pos, anchor_pos)
+	if pos2.x < pos.x then
+		pos.x = pos2.x
+	end
+	if pos2.y < pos.y then
+		pos.y = pos2.y
+	end
+	if pos2.z < pos.z then
+		pos.z = pos2.z
+	end
+	return pos
+end
+
+--------------------------------------
+--Get world maximum relative to plan position
+--------------------------------------
+function plan_class:get_world_maxp(anchor_pos)
+	local pos = self:get_world_pos(self.data.max_pos, anchor_pos)
+	local pos2 = self:get_world_pos(self.data.min_pos, anchor_pos)
+	if pos2.x > pos.x then
+		pos.x = pos2.x
+	end
+	if pos2.y > pos.y then
+		pos.y = pos2.y
+	end
+	if pos2.z > pos.z then
+		pos.z = pos2.z
+	end
+	return pos
+end
+
+--------------------------------------
 --Get plan position relative to world position
 --------------------------------------
 function plan_class:get_plan_pos(pos, anchor_pos)
@@ -359,72 +396,67 @@ end
 --Propose anchor position for the plan
 --------------------------------------
 function plan_class:propose_anchor(world_pos, do_check, add_y, add_xz)
-	add_xz = add_xz or 4
+	add_xz = add_xz or 4 --should be the same additional air filler + distance
 	add_y = add_y or 8
-	local minp = self:get_world_pos(self.data.min_pos, world_pos)
-	local maxp = self:get_world_pos(self.data.max_pos, world_pos)
+	local minp = self:get_world_minp(world_pos)
+	local maxp = self:get_world_maxp(world_pos)
 
+	dprint("check proposal", minetest.pos_to_string(minp), minetest.pos_to_string(world_pos), minetest.pos_to_string(maxp))
 	-- to get some randomization for error-node
 	local minx, maxx, stx, miny, maxy, minz, maxz, stz
 	if math.random(2) == 1 then
 		minx = minp.x-add_xz
 		maxx = maxp.x+add_xz
+		stx = 1
 	else
 		maxx = minp.x-add_xz
 		minx = maxp.x+add_xz
+		stx = -1
 	end
 	if math.random(2) == 1 then
 		minz = minp.z-add_xz
 		maxz = maxp.z+add_xz
+		stz = 1
 	else
 		maxz = minp.z-add_xz
 		minz = maxp.z+add_xz
-	end
-	-- handle rotation
-	if minx < maxx then
-		stx = 1
-	else
-		stx = -1
-	end
-	if minz < maxz then
-		stz = 1
-	else
 		stz = -1
 	end
 	miny = minp.y-add_y
 	maxy = maxp.y+add_y
+
 	-- only "y" needs to be proposed as usable ground
 	local ground_y
 	local groundnode_count = 0
-	self:load_region({x=minx, y=miny, z=minz}) --first region
+	self:load_region(minp, maxp) --full region because of processing in one step
 
 	for x = minx, maxx, stx do
 		for z = minz, maxz, stz do
 			local is_ground = true
 			for y = miny, maxy, 1 do
 				local pos = {x=x, y=y, z=z}
-				if not self.vm_area:contains(x, y, z) then
-					self:load_region(pos, pos)
-				end
 				local node_index = self.vm_area:indexp(pos)
 				local content_id = self.vm_data[node_index]
 				--print(x,y,z,minetest.get_name_from_content_id(content_id))
-				if do_check and plan._protected_content_ids[content_id] then
+				if do_check and mapping._protected_content_ids[content_id] then
 					dprint("build denied because of not overridable", minetest.get_name_from_content_id(content_id), "at", x,y,z)
 					return false, pos
 				end
 
-				if plan._over_surface_content_ids[content_id] then
+				if mapping._over_surface_content_ids[content_id] then
 					if y == miny then
 						dprint("build denied because hanging in",minetest.get_name_from_content_id(content_id), "at", x,y,z)
 						return false, pos
 					end
 					if is_ground == true then --only if ground above
-						groundnode_count = groundnode_count + 1
-						if groundnode_count == 1 then
-							ground_y = pos.y
-						else
-							ground_y = ground_y + (pos.y - ground_y) / groundnode_count
+						-- do not check additional nodes at the sites
+						if ((x == minp.x) or (x == maxp.x)) and ((z == minp.z) or (z == maxp.z)) then
+							groundnode_count = groundnode_count + 1
+							if groundnode_count == 1 then
+								ground_y = pos.y
+							else
+								ground_y = ground_y + (pos.y - ground_y) / groundnode_count
+							end
 						end
 						if not do_check == true then
 							break -- leave y loop, not necessary to check above
@@ -435,7 +467,7 @@ function plan_class:propose_anchor(world_pos, do_check, add_y, add_xz)
 			end
 			if is_ground ~= false then --nil is air only (no ground), true is ground only (no air)
 				-- air only or non-air only. Not buildable
-				dprint("build denied because ground only at", x,y,z)
+				dprint("build denied because ground only at", x,z)
 				return false, {x=x, y=world_pos.y, z=z}
 			end
 		end
@@ -553,31 +585,5 @@ function plan_class:set_status(status)
 		self:on_status(self.status)
 	end
 end
-------------------------------------------
--- Cache some node content ID
-plan._protected_content_ids = {}
-plan._over_surface_content_ids = {}
-minetest.after(0, function()
 
-	for name, def in pairs(minetest.registered_nodes) do
-		-- protected nodes
-		if def.is_ground_content == false and not
-				(def.groups.leaves or def.groups.leafdecay or def.groups.tree) then
-			plan._protected_content_ids[minetest.get_content_id(name)] = name
-		end
-
-		-- usual first node over surface
-		if def.walkable == false or def.drawtype == "airlike" or
-				def.groups.flora or def.groups.flower or
-				def.groups.leaves or def.groups.leafdecay
-				or def.groups.tree then
-			plan._over_surface_content_ids[minetest.get_content_id(name)] = name
-		end
-	end
-
-	plan._over_surface_content_ids[minetest.get_content_id("air")] = "air"
-	plan._over_surface_content_ids[minetest.get_content_id("default:snow")] = "default:snow"
-	plan._over_surface_content_ids[minetest.get_content_id("default:snowblock")] = "default:snowblock"
-end)
-------------------------------------------
 return plan

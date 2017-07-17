@@ -70,7 +70,7 @@ function npc_ai_class:get_if_buildable(node)
 	else
 		-- no right node at place
 		-- Check if the previous content needs to be replaced
-		if node.world_node_name ~= "air" then
+		if not mapping._non_removal_nodes[world_content_id] then
 			node.final_node_name = node.name
 			node.name = "air"
 			node.nodeinfo = self.plan.data.nodeinfos["air"]
