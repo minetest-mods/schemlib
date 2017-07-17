@@ -265,6 +265,19 @@ function plan_class:get_world_maxp(anchor_pos)
 end
 
 --------------------------------------
+--Check if world position is in plan
+--------------------------------------
+function plan_class:contains(chkpos, anchor_pos)
+
+	local minp = plan_class:get_world_minp(anchor_pos)
+	local maxp = plan_class:get_world_maxp(anchor_pos)
+
+	return (x >= minp.x) and (x <= maxp.x) and
+		(y >= minp.y) and (y <= maxp.y) and
+		(z >= minp.z) and (z <= maxp.z)
+end
+
+--------------------------------------
 --Get plan position relative to world position
 --------------------------------------
 function plan_class:get_plan_pos(pos, anchor_pos)
@@ -281,7 +294,7 @@ end
 -- get nodes for selection which one should be build
 -- skip parameter is randomized
 function plan_class:get_random_plan_pos()
-	dprint("get something from list")
+	dprint("get random plan position")
 
 	-- get random existing y
 	local keyset = {}
@@ -395,13 +408,21 @@ end
 --------------------------------------
 --Propose anchor position for the plan
 --------------------------------------
-function plan_class:propose_anchor(world_pos, do_check, add_y, add_xz)
-	add_xz = add_xz or 4 --should be the same additional air filler + distance
-	add_y = add_y or 8
+function plan_class:propose_anchor(world_pos, do_check, add_xz)
+	add_xz = add_xz or 4 --distance to other buildings to check should be the same additional air filler + distance
+
+	-- hard-coded at the first
+	local max_error_rate = 0.1  -- 10%
+	local search_range_y = 8
+	local max_hanging = 3
+	local max_bury = 5
+
 	local minp = self:get_world_minp(world_pos)
 	local maxp = self:get_world_maxp(world_pos)
 
-	dprint("check proposal", minetest.pos_to_string(minp), minetest.pos_to_string(world_pos), minetest.pos_to_string(maxp))
+	local max_error = (self.data.max_pos.x - self.data.min_pos.x + 1) * (self.data.max_pos.z - self.data.min_pos.z + 1) * max_error_rate
+
+	dprint("check anchor proposal", minetest.pos_to_string(minp), minetest.pos_to_string(world_pos), minetest.pos_to_string(maxp), "check:", do_check)
 	-- to get some randomization for error-node
 	local minx, maxx, stx, miny, maxy, minz, maxz, stz
 	if math.random(2) == 1 then
@@ -422,13 +443,16 @@ function plan_class:propose_anchor(world_pos, do_check, add_y, add_xz)
 		minz = maxp.z+add_xz
 		stz = -1
 	end
-	miny = minp.y-add_y
-	maxy = maxp.y+add_y
+	miny = minp.y-search_range_y
+	maxy = maxp.y+search_range_y
 
-	-- only "y" needs to be proposed as usable ground
-	local ground_y
-	local groundnode_count = 0
-	self:load_region(minp, maxp) --full region because of processing in one step
+	local minp_regio = {x=minp.x-add_xz, y=miny, z=minp.z-add_xz}
+	local maxp_regio = {x=maxp.x+add_xz, y=maxy, z=maxp.z+add_xz}
+	self:load_region(minp_regio, maxp_regio) --full region because of processing in one step
+	local ground_statistics = {}
+	local ground_count = 0
+	local error_count = 0
+	local ground_min, ground_max
 
 	for x = minx, maxx, stx do
 		for z = minz, maxz, stz do
@@ -438,44 +462,86 @@ function plan_class:propose_anchor(world_pos, do_check, add_y, add_xz)
 				local node_index = self.vm_area:indexp(pos)
 				local content_id = self.vm_data[node_index]
 				--print(x,y,z,minetest.get_name_from_content_id(content_id))
+				-- check if building allowed
 				if do_check and mapping._protected_content_ids[content_id] then
 					dprint("build denied because of not overridable", minetest.get_name_from_content_id(content_id), "at", x,y,z)
 					return false, pos
 				end
 
-				if mapping._over_surface_content_ids[content_id] then
-					if y == miny then
-						dprint("build denied because hanging in",minetest.get_name_from_content_id(content_id), "at", x,y,z)
-						return false, pos
-					end
-					if is_ground == true then --only if ground above
-						-- do not check additional nodes at the sites
-						if ((x == minp.x) or (x == maxp.x)) and ((z == minp.z) or (z == maxp.z)) then
-							groundnode_count = groundnode_count + 1
-							if groundnode_count == 1 then
-								ground_y = pos.y
+				-- check if surface found
+				if is_ground == true then
+					if mapping._over_surface_content_ids[content_id] then
+						is_ground = false --found
+						if y == miny then
+							error_count = error_count + 1
+							if error_count > max_error then
+								dprint("max error reached at bottom", x,y,z, error_count, max_error)
+								return false, pos
+							end
+						elseif ((x == minp.x) or (x == maxp.x)) or ((z == minp.z) or (z == maxp.z)) then
+							-- do not check additional nodes at the sites
+							ground_count = ground_count + 1
+							if not ground_min or ground_min > y then
+								ground_min  = y
+							end
+							if not ground_max or ground_max < y then
+								ground_max  = y
+							end
+							if not ground_statistics[y] then
+								ground_statistics[y] = 1
 							else
-								ground_y = ground_y + (pos.y - ground_y) / groundnode_count
+								ground_statistics[y] = ground_statistics[y] + 1
 							end
 						end
-						if not do_check == true then
-							break -- leave y loop, not necessary to check above
-						end
 					end
-					is_ground = false
+				elseif do_check ~= true then
+					break --y loop - found surface
 				end
 			end
-			if is_ground ~= false then --nil is air only (no ground), true is ground only (no air)
-				-- air only or non-air only. Not buildable
-				dprint("build denied because ground only at", x,z)
-				return false, {x=x, y=world_pos.y, z=z}
+			if is_ground == true then --nil is air only (no ground), true is ground only (no air)
+				error_count = error_count + 1
+				if error_count > max_error then
+					dprint("max error reached above ", x,maxy, z, error_count, max_error)
+					return false, {x=x, y=maxy, z=z}
+				end
 			end
 		end
 	end
 
+	dprint("data:",  ground_min,  ground_max,  max_error,  error_count, ground_count, dump(ground_statistics))
+	-- search for the best matched ground_y
+	local ground_y
+	while not ground_y do
+		if ground_min == ground_max then -- really flat
+			ground_y = ground_min
+		else
+			-- get min / max counters
+			local min_count = ground_statistics[ground_min] or 0
+			local min_count_newfaulty = ground_statistics[ground_min - max_hanging] or 0
+			local max_count = ground_statistics[ground_max] or 0
+			local max_count_newfaulty = ground_statistics[ground_max + max_bury] or 0
+			-- compare adjustment under or above
+			if (min_count_newfaulty > max_count_newfaulty) or
+					(min_count_newfaulty == max_count_newfaulty) and min_count > max_count then
+				ground_max = ground_max - 1
+				error_count = error_count + max_count_newfaulty
+			else
+				ground_min = ground_min + 1
+				error_count = error_count + min_count_newfaulty
+			end
+			-- check the adjustment errors
+			if error_count > max_error then
+				dprint("max error reached in analysis ", error_count, max_error)
+				return false
+			end
+			--print("debug", tostring(ground_y), ground_min, ground_max, error_count, min_count, max_count, min_count_newfaulty, max_count_newfaulty)
+		end
+	end
+
+	-- only "y" needs to be proposed as usable ground
 	if ground_y then
 		dprint("proposed anchor high", ground_y)
-		return {x=world_pos.x, y=math.floor(ground_y+0.5), z=world_pos.z}
+		return {x=world_pos.x, y=ground_y, z=world_pos.z}
 	end
 end
 
