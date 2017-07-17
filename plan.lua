@@ -268,13 +268,12 @@ end
 --Check if world position is in plan
 --------------------------------------
 function plan_class:contains(chkpos, anchor_pos)
+	local minp = self:get_world_minp(anchor_pos)
+	local maxp = self:get_world_maxp(anchor_pos)
 
-	local minp = plan_class:get_world_minp(anchor_pos)
-	local maxp = plan_class:get_world_maxp(anchor_pos)
-
-	return (x >= minp.x) and (x <= maxp.x) and
-		(y >= minp.y) and (y <= maxp.y) and
-		(z >= minp.z) and (z <= maxp.z)
+	return (chkpos.x >= minp.x) and (chkpos.x <= maxp.x) and
+		(chkpos.y >= minp.y) and (chkpos.y <= maxp.y) and
+		(chkpos.z >= minp.z) and (chkpos.z <= maxp.z)
 end
 
 --------------------------------------
