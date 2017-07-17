@@ -276,6 +276,22 @@ function plan_class:contains(chkpos, anchor_pos)
 		(chkpos.z >= minp.z) and (chkpos.z <= maxp.z)
 end
 
+
+--------------------------------------
+--Check if the plan overlaps with given area
+--------------------------------------
+function plan_class:check_overlap(pos1, pos2, anchor_pos)
+	-- check all 8 edges
+	return self:contains(pos1, anchor_pos) or
+			self:contains(pos2, anchor_pos or
+			self:contains({x=pos1.x, y=pos1.y, z=pos2.z}, anchor_pos) or
+			self:contains({x=pos1.x, y=pos2.y, z=pos1.z}, anchor_pos) or
+			self:contains({x=pos1.x, y=pos2.y, z=pos2.z}, anchor_pos) or
+			self:contains({x=pos2.x, y=pos1.y, z=pos2.z}, anchor_pos) or
+			self:contains({x=pos2.x, y=pos2.y, z=pos1.z}, anchor_pos)
+
+	)
+end
 --------------------------------------
 --Get plan position relative to world position
 --------------------------------------
@@ -321,11 +337,11 @@ end
 --------------------------------------
 --Get a nodes list for a world chunk
 --------------------------------------
-function plan_class:get_chunk_nodes(plan_pos)
+function plan_class:get_chunk_nodes(plan_pos, anchor_pos)
 -- calculate the begin of the chunk
 	--local BLOCKSIZE = core.MAP_BLOCKSIZE
 	local BLOCKSIZE = 16
-	local wpos = self:get_world_pos(plan_pos)
+	local wpos = self:get_world_pos(plan_pos, anchor_pos)
 	local minp = {}
 	minp.x = (math.floor(wpos.x/BLOCKSIZE))*BLOCKSIZE
 	minp.y = (math.floor(wpos.y/BLOCKSIZE))*BLOCKSIZE
