@@ -70,11 +70,11 @@ function npc_ai_class:get_if_buildable(node)
 	else
 		-- no right node at place
 		-- Check if the previous content needs to be replaced
-		if not mapping._non_removal_nodes[world_content_id] then
+		if not mapping._volatile_contend_ids[world_content_id] then
 			node.final_node_name = node.name
 			node.name = "air"
 			node.nodeinfo = self.plan.data.nodeinfos["air"]
-		elseif mapping._non_removal_nodes[mapped.content_id] then
+		elseif mapping._airlike_contend_ids[mapped.content_id] and mapping._airlike_contend_ids[world_content_id] then
 			-- removal of this type of node not decessary old/new are _not_removal_nodes
 			node:remove_from_plan()
 			return nil

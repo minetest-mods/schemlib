@@ -246,9 +246,10 @@ end
 
 ------------------------------------------
 -- Cache some node content ID
-mapping._protected_content_ids = {}
-mapping._over_surface_content_ids = {}
-mapping._non_removal_nodes = {}
+mapping._protected_content_ids = {}    -- this nodes detects other buildings
+mapping._over_surface_content_ids = {} -- this nodes detects surface
+mapping._volatile_contend_ids = {}     -- this nodes will not be removed before placing new one
+mapping._airlike_contend_ids = {}      -- this nodes will not be removed if air should be placed
 
 minetest.after(0, function()
 
@@ -267,9 +268,14 @@ minetest.after(0, function()
 			mapping._over_surface_content_ids[minetest.get_content_id(name)] = name
 		end
 
-		-- this nodes needs not to be removed
-		if def.liquidtype == "flowing" then
-			mapping._non_removal_nodes[minetest.get_content_id(name)] = name
+		-- this nodes needs not to be removed before placing new one
+		if def.groups.liquid then
+			mapping._volatile_contend_ids[minetest.get_content_id(name)] = name
+		end
+
+		-- this nodes will not be removed if air should be placed
+		if  def.liquidtype == "flowing" then
+			mapping._airlike_contend_ids[minetest.get_content_id(name)] = name
 		end
 	end
 
@@ -277,8 +283,11 @@ minetest.after(0, function()
 	mapping._over_surface_content_ids[minetest.get_content_id("default:snow")] = "default:snow"
 	mapping._over_surface_content_ids[minetest.get_content_id("default:snowblock")] = "default:snowblock"
 
-	mapping._non_removal_nodes[minetest.get_content_id("air")] = "air"
-	mapping._non_removal_nodes[minetest.get_content_id("default:snow")] = "default:snow"
+	mapping._volatile_contend_ids[minetest.get_content_id("air")] = "air"
+	mapping._volatile_contend_ids[minetest.get_content_id("default:snow")] = "default:snow"
+
+	mapping._airlike_contend_ids[minetest.get_content_id("air")] = "air"
+	mapping._airlike_contend_ids[minetest.get_content_id("default:snow")] = "default:snow"
 end)
 ------------------------------------------
 
