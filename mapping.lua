@@ -268,7 +268,7 @@ minetest.after(0, function()
 		end
 
 		-- this nodes needs not to be removed
-		if def.groups.liquid then
+		if def.liquidtype == "flowing" then
 			mapping._non_removal_nodes[minetest.get_content_id(name)] = name
 		end
 	end
