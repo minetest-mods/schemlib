@@ -98,9 +98,9 @@ c["default:river_water_source"] = { cost_item = "bucket:bucket_river_water" }
 c["default:water_source"]       = { cost_item = "bucket:bucket_water" }
 
 -- does not sense to set flowing water because it flow away without the source (and will be generated trough source)
-c["default:water_flowing"]       = { name = "" }
-c["default:lava_flowing"]        = { name = "" }
-c["default:river_water_flowing"] = { name = "" }
+c["default:water_flowing"]       = { name = "air" }
+c["default:lava_flowing"]        = { name = "air" }
+c["default:river_water_flowing"] = { name = "air" }
 
 -- pay different dirt types by the sane dirt
 c["default:dirt_with_dry_grass"] = { cost_item = "default:dirt" }
