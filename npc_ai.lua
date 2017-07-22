@@ -57,7 +57,7 @@ function npc_ai_class:get_if_buildable(node)
 	node.world_node_name = minetest.get_name_from_content_id(world_content_id)
 	if world_content_id == mapped.content_id then
 		-- right node is at the place. there are no costs to touch them. Check if a touch needed
-		if mapped.param2 ~= self.plan.vm_param2_data[node_index] then
+		if mapped.node_def.paramtype2 and (mapped.param2 ~= self.plan.vm_param2_data[node_index]) then
 			--param2 adjustment
 			return node
 		elseif not mapped.meta or mapping.is_equal_meta(minetest.get_meta(world_pos):to_table(), mapped.meta) then
