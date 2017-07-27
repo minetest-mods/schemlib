@@ -81,10 +81,12 @@ License: LGPLv2
     - content_id, node_def - game references, VoxelMap ID and registered_nodes definition
     - final_node_name      - if set, the node is not deleted from plan by place(). Contains the node name to be placed at the end. used for replacing by air before build the node
     - world_node_name      - contains the node name currently placed to the world
+    - param2_plan_rotation - param2 value before rotation
   - node_obj:place()         - place node to world using "add_node" and remove them from plan
   - node_obj:remove_from_plan() - remove this node from plan
   - node_obj:get_under()     - returns the node under this one if exists in plan
   - node_obj:get_above()     - returns the node above this one if exists in plan
+  - node_obj:get_attached_to() - returns the position the node is attached to
   - node_obj:rotate_facedir(facedir) - rotate the node - is internally used for plan rotation in get_mapped() - supported 0-3 (x+ axis) only
 
 ### object-attributes

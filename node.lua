@@ -49,6 +49,7 @@ end
 function node_class:rotate_facedir(facedir)
 	-- rotate wallmounted
 	local mapped = self.mapped
+	mapped.param2_plan_rotation = mapped.param2
 	if mapped.node_def.paramtype2 == "wallmounted" then
 		local param2_dir = mapped.param2 % 8
 		local param2_color = mapped.param2 - param2_dir
@@ -122,6 +123,27 @@ function node_class:get_under()
 end
 
 --------------------------------------
+-- get plan_pos of attached node, or nil if not attached
+--------------------------------------
+function node_class:get_attached_to()
+	local mapped = self:get_mapped()
+	local attached_wallmounted
+	if mapped.name == "doors:hidden" then
+		attached_wallmounted = 1 --bellow
+	elseif mapped.node_def.groups.attached_node then
+		if mapped.node_def.paramtype2 == "wallmounted" then
+			attached_wallmounted = mapped.param2_plan_rotation
+		else
+			attached_wallmounted = 1 --bellow
+		end
+	end
+	if attached_wallmounted then
+		local dir = node.wallmounted_to_dir[attached_wallmounted]
+		return vector.add(self._plan_pos, dir)
+	end
+end
+
+--------------------------------------
 -- get node above this one if exists
 --------------------------------------
 function node_class:get_above()
@@ -173,6 +195,15 @@ node.rotation_facedir_map = {
 }
 node.rotation_facedir_mirrored_map = {3, 2, 1, 4, 7, 6, 5, 8, 11,10,9,16,19,18,17,12,15,14,13,20,23,22,21,[0] = 0}
 
+
+node.wallmounted_to_dir = {
+	[0] = {x=0,y=1,z=0},
+	[1] = {x=0,y=-1,z=0},
+	[2] = {x=1,y=0,z=0},
+	[3] = {x=-1,y=0,z=0},
+	[4] = {x=0,y=0,z=1},
+	[5] = {x=0,y=0,z=-1},
+}
 --[[
 --- Temporary code to calculate the wallmounted map
 node.rotation_wallmounted_map = {}

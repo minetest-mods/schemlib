@@ -53,8 +53,14 @@ function npc_ai_class:get_if_buildable(node)
 	end
 	node_index = self.plan.vm_area:indexp(world_pos)
 	world_content_id = self.plan.vm_data[node_index]
-
 	node.world_node_name = minetest.get_name_from_content_id(world_content_id)
+
+	-- place attached nodes after the node under
+	local attached_pos = node:get_attached_to()
+	if attached_pos and self.plan:get_node(attached_pos) then
+		return -- attaching not possible
+	end
+
 	if world_content_id == mapped.content_id then
 		-- right node is at the place. there are no costs to touch them. Check if a touch needed
 		if mapped.node_def.paramtype2 and (mapped.param2 ~= self.plan.vm_param2_data[node_index]) then
@@ -93,6 +99,11 @@ function npc_ai_class:get_node_rating(node, npcpos)
 	local distance_pos = table.copy(world_pos)
 	local prefer = 0
 
+	-- build water at the later time
+	if mapped.node_def.groups.liquid then
+		prefer = prefer - self.build_distance
+	end
+
 	--prefer same items in building order
 	if self.lasttarget_name then
 		if self.lasttarget_name == mapped.name then
@@ -111,7 +122,7 @@ function npc_ai_class:get_node_rating(node, npcpos)
 		prefer = prefer + self.build_distance + 1
 	else
 		if node:get_under() then
-			prefer = prefer - (2 * self.build_distance)
+			prefer = prefer - 2
 		end
 		distance_pos.y = distance_pos.y + self.build_distance
 	end
