@@ -44,6 +44,32 @@ function node_class:get_world_pos()
 end
 
 -------------------------------------
+--	Handle rotation
+--------------------------------------
+function node_class:rotate_facedir(facedir)
+	-- rotate wallmounted
+	local mapped = self.mapped
+	if mapped.node_def.paramtype2 == "wallmounted" then
+		local param2_dir = mapped.param2 % 8
+		local param2_color = mapped.param2 - param2_dir
+		if self.plan.mirrored then
+			param2_dir = node.rotation_wallmounted_mirrored_map[param2_dir]
+		end
+		mapped.param2 = node.rotation_wallmounted_map[facedir][param2_dir] + param2_color
+	elseif mapped.node_def.paramtype2 == "facedir" then
+		-- rotate facedir
+		local param2_dir = mapped.param2 % 32
+		local param2_color = mapped.param2 - param2_dir
+		if self.plan.mirrored then
+			param2_dir =  node.rotation_facedir_mirrored_map[param2_dir]
+		end
+		mapped.param2 = node.rotation_facedir_map[facedir][param2_dir] + param2_color
+	end
+
+
+end
+
+-------------------------------------
 --	Get all information to build the node
 --------------------------------------
 function node_class:get_mapped()
@@ -53,7 +79,7 @@ function node_class:get_mapped()
 
 	local mappedinfo = self.nodeinfo.mapped
 	if not mappedinfo then
-		mappedinfo = mapping.map(self.name)
+		mappedinfo = mapping.map(self.name, self.plan)
 		self.nodeinfo.mapped = mappedinfo
 		self.mapped = nil
 	end
@@ -75,13 +101,15 @@ function node_class:get_mapped()
 	mapped.prob = mapped.prob or self.data.prob
 
 	if mapped.custom_function ~= nil then
-		mapped.custom_function(mapped, self._plan_pos, self:get_world_pos())
+		mapped.custom_function(mapped, self)
 		mapped.custom_function = nil
 	end
 
 	mapped.content_id = minetest.get_content_id(mapped.name)
 	self.mapped = mapped
 	self.cost_item = mapped.cost_item -- workaround / backwards compatibility to npcf_builder
+
+	self:rotate_facedir(self.plan.facedir)
 	return mapped
 end
 
@@ -124,6 +152,98 @@ end
 function node_class:remove_from_plan()
 	self.plan:del_node(self._plan_pos)
 end
+
+
+--------------------------------------
+-- Precalculated rotation mapping
+--------------------------------------
+node.rotation_wallmounted_map = {
+	[0] = {1,2,3,4,5,[0] = 0},
+	[1] = {1,5,4,2,3,[0] = 0},
+	[2] = {1,3,2,5,4,[0] = 0},
+	[3] = {1,4,5,3,2,[0] = 0},
+}
+node.rotation_wallmounted_mirrored_map = {1,3,2,4,5,[0] = 0}
+
+node.rotation_facedir_map = {
+	[0] = { 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,[0] = 0},
+	[1] = { 2, 3, 0,13,14,15,12,17,18,19,16, 9,10,11, 8, 5, 6, 7, 4,23,20,21,22,[0] = 1},
+	[2] = { 3, 0, 1,10,11, 8, 9, 6, 7, 4, 5,18,19,16,17,14,15,12,13,22,23,20,21,[0] = 2},
+	[3] = { 0, 1, 2,19,16,17,18,15,12,13,14, 7, 4, 5, 6,11, 8, 9,10,21,22,23,20,[0] = 3},
+}
+node.rotation_facedir_mirrored_map = {3, 2, 1, 4, 7, 6, 5, 8, 11,10,9,16,19,18,17,12,15,14,13,20,23,22,21,[0] = 0}
+
+--[[
+--- Temporary code to calculate the wallmounted map
+node.rotation_wallmounted_map = {}
+for rotate = 0, 3 do -- facedir
+	node.rotation_wallmounted_cache[rotate] = {}
+	for wallmounted = 0, 5 do
+		local facedir, new_wallmounted
+		if wallmounted > 1 then
+			if wallmounted == 2 then
+				facedir = 1
+			elseif wallmounted == 3 then
+				facedir = 3
+			elseif wallmounted == 4 then
+				facedir = 0
+			elseif wallmounted == 5 then
+				facedir = 2
+			end
+			facedir = (facedir + rotate) % 4 --rotate
+			if facedir == 1 then
+				new_wallmounted = 2
+			elseif facedir == 3 then
+				new_wallmounted = 3
+			elseif facedir == 0 then
+				new_wallmounted = 4
+			elseif facedir == 2 then
+				new_wallmounted = 5
+			end
+		else
+			new_wallmounted = wallmounted
+		end
+		node.rotation_wallmounted_cache[rotate][wallmounted] = new_wallmounted
+	end
+end
+print(dump(node.rotation_wallmounted_cache))
+]]
+
+--[[
+local direction_map = {1, 3, 2, 4}
+local direction_map_mirror = {1, 4, 2, 3}
+
+for rotate = 0, 3 do
+	node.rotation_facedir_map[rotate] = {}
+	for wal_direction = 0, 5 do
+		for wal_rotate = 0, 3 do
+			local oldwal = wal_direction*4+wal_rotate
+			if wal_direction == 0 then -- y+
+				new_wal_direction = 0
+				new_wal_rotate = (wal_rotate + rotate) % 4
+			elseif wal_direction == 5 then -- y-
+				new_wal_direction = 5
+				new_wal_rotate = (4+wal_rotate - rotate) % 4
+			else
+				new_wal_direction = direction_map[(direction_map[wal_direction] + rotate-1)%4+1]
+				new_wal_rotate = (wal_rotate + rotate) % 4
+				if rotate == 0 then
+					local new_wal_rotate_mirror = new_wal_rotate
+					if new_wal_rotate_mirror == 1 then
+						new_wal_rotate_mirror = 3
+					elseif new_wal_rotate_mirror == 3 then
+						new_wal_rotate_mirror = 1
+					end
+					local new_wal_direction_mirror = direction_map_mirror[(direction_map[wal_direction] + rotate-1)%4+1]
+					print(rotate, oldwal, (new_wal_direction_mirror*4+new_wal_rotate_mirror))
+				end
+			end
+			node.rotation_facedir_map[rotate][oldwal] = new_wal_direction*4 + new_wal_rotate
+		end
+	end
+end
+print(dump(node.rotation_facedir_map))
+-- ]]
 
 -------------------
 return node

@@ -67,6 +67,8 @@ License: LGPLv2
   - plan_obj.data.groundnode_count - count of nodes found for ground_y determination (internal)
   - plan_obj.data.min_pos        - minimal {x,y,z} vector
   - plan_obj.data.max_pos        - maximal {x,y,z} vector
+  - plan_obj.facedir             - Plan rotation - x+ axis supported only (values 0-3)
+  - plan_obj.mirrored            - (bool) Mirrored build - mirror to z-axis. Note: if you need x-axis mirror - just rotate the building by 2 in addition
 
 ## Node object
 ### class-methods
@@ -83,6 +85,7 @@ License: LGPLv2
   - node_obj:remove_from_plan() - remove this node from plan
   - node_obj:get_under()     - returns the node under this one if exists in plan
   - node_obj:get_above()     - returns the node above this one if exists in plan
+  - node_obj:rotate_facedir(facedir) - rotate the node - is internally used for plan rotation in get_mapped() - supported 0-3 (x+ axis) only
 
 ### object-attributes
   - node_obj.name         - original node name without mapping

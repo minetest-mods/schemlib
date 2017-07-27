@@ -26,14 +26,17 @@ function plan.new(plan_id , anchor_pos)
 	self.__index = plan_class
 	self.plan_id = plan_id
 	self.anchor_pos = anchor_pos
-	self.data = {}
-	self.data.min_pos = {}
-	self.data.max_pos = {}
-	self.data.groundnode_count = 0
-	self.data.ground_y = -1 --if nothing defined, it is under the building
-	self.data.scm_data_cache = {}
-	self.data.nodeinfos = {}
-	self.data.nodecount = 0
+	self.facedir = 0
+	self.mirrored = false
+	self.data = {
+			min_pos = {},
+			max_pos = {},
+			groundnode_count = 0,
+			ground_y = -1, --if nothing defined, it is under the building
+			scm_data_cache = {},
+			nodeinfos = {},
+			nodecount = 0,
+		}
 	self.status = "new"
 	return self -- the plan object
 end
@@ -220,12 +223,40 @@ end
 --------------------------------------
 --Get world position relative to plan position
 --------------------------------------
-function plan_class:get_world_pos(pos, anchor_pos)
+function plan_class:get_world_pos(plan_pos, anchor_pos)
 	local apos = anchor_pos or self.anchor_pos
-	return {	x=pos.x+apos.x,
-					y=pos.y+apos.y - self.data.ground_y - 1,
-					z=pos.z+apos.z
-				}
+	local pos
+	if self.mirrored then
+		pos = table.copy(plan_pos)
+		pos.x = -pos.x
+	else
+		pos = plan_pos
+	end
+	local facedir_rotated = {
+			[0] = function(pos,apos) return {
+					x=pos.x+apos.x,
+					y=pos.y+apos.y,
+					z=pos.z+apos.z,
+			}end,
+			[1] = function(pos,apos) return {
+					x=pos.z+apos.x,
+					y=pos.y+apos.y,
+					z=-pos.x+apos.z,
+			} end,
+			[2] = function(pos,apos) return {
+					x=-pos.x+apos.x,
+					y=pos.y+apos.y,
+					z=-pos.z+apos.z,
+			} end,
+			[3] = function(pos,apos) return {
+					x=-pos.z+apos.x,
+					y=pos.y+apos.y,
+					z=pos.x+apos.z,
+			} end,
+		}
+	local ret = facedir_rotated[self.facedir](pos, apos)
+	ret.y = ret.y - self.data.ground_y - 1
+	return ret
 end
 
 --------------------------------------
@@ -295,12 +326,37 @@ end
 --------------------------------------
 --Get plan position relative to world position
 --------------------------------------
-function plan_class:get_plan_pos(pos, anchor_pos)
+function plan_class:get_plan_pos(world_pos, anchor_pos)
 	local apos = anchor_pos or self.anchor_pos
-	return {	x=pos.x-apos.x,
-					y=pos.y-apos.y + self.data.ground_y + 1,
+	local facedir_rotated = {
+			[0] = function(pos,apos) return {
+					x=pos.x-apos.x,
+					y=pos.y-apos.y,
 					z=pos.z-apos.z
-				}
+				} end,
+			[1] = function(pos,apos) return {
+					x=-(pos.z-apos.z),
+					y=pos.y-apos.y,
+					z=(pos.x-apos.x),
+			} end,
+			[2] = function(pos,apos) return {
+					x=-(pos.x-apos.x),
+					y=pos.y-apos.y,
+					z=-(pos.z-apos.z),
+			} end,
+			[3] = function(pos,apos) return {
+					x=pos.z-apos.z,
+					y=pos.y-apos.y,
+					z=-(pos.x-apos.x),
+			} end,
+		}
+	local ret = facedir_rotated[self.facedir](world_pos, apos)
+
+	if self.mirrored then
+		ret.x = -ret.x
+	end
+	ret.y = ret.y + self.data.ground_y + 1
+	return ret
 end
 
 	--------------------------------------
