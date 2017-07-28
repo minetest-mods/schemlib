@@ -48,7 +48,7 @@ License: LGPLv2
   - plan_obj:get_world_maxp([anchor_pos])   - get highest world position
   - plan_obj:contains(world_pos[,anchor_pos]) - check if the given world position is in the plan
   - plan_obj:get_plan_pos(world_pos[,anchor_pos]) - get a plan position for a world position
-  - plan_obj:check_overlap(pos1, pos2[,anchor_pos]) - check if the plan overlap the area in pos1/pos2
+  - plan_obj:check_overlap(pos1, pos2[,add_distance][,anchor_pos]) - check if the plan overlap the area in pos1/pos2
   - plan_obj:get_chunk_nodes(plan_pos[,anchor_pos]) - get a list of all nodes from chunk of a pos
   - plan_obj:do_add_chunk(plan_pos) - Place all nodes for chunk in real world
   - plan_obj:do_add_chunk_voxel(plan_pos)   - Place all nodes for chunk in real world using voxelmanip

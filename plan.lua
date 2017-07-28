@@ -311,17 +311,30 @@ end
 --------------------------------------
 --Check if the plan overlaps with given area
 --------------------------------------
-function plan_class:check_overlap(pos1, pos2, anchor_pos)
-	-- check all 8 edges
-	return self:contains(pos1, anchor_pos) or
-			self:contains(pos2, anchor_pos or
-			self:contains({x=pos1.x, y=pos1.y, z=pos2.z}, anchor_pos) or
-			self:contains({x=pos1.x, y=pos2.y, z=pos1.z}, anchor_pos) or
-			self:contains({x=pos1.x, y=pos2.y, z=pos2.z}, anchor_pos) or
-			self:contains({x=pos2.x, y=pos1.y, z=pos2.z}, anchor_pos) or
-			self:contains({x=pos2.x, y=pos2.y, z=pos1.z}, anchor_pos)
+function plan_class:check_overlap(minp, maxp, add_distance, anchor_pos)
 
-	)
+	add_distance = add_distance or 0
+
+	local minp_a = vector.subtract(minp, add_distance)
+	local maxp_a = vector.add(maxp, add_distance)
+
+	local minp_b = vector.subtract(self:get_world_minp(anchor_pos), add_distance)
+	local maxp_b = vector.add(self:get_world_maxp(anchor_pos), add_distance)
+
+	return ((minp_a.x >= minp_b.x and minp_a.x <= maxp_b.x) or
+			(maxp_a.x >= minp_b.x and maxp_a.x <= maxp_b.x) or
+			(minp_b.x >= minp_a.x and minp_b.x <= maxp_a.x) or
+			(maxp_b.x >= minp_a.x and maxp_b.x <= maxp_a.x))
+			and
+			((minp_a.y >= minp_b.y and minp_a.y <= maxp_b.y) or
+			(maxp_a.y >= minp_b.y and maxp_a.y <= maxp_b.y) or
+			(minp_b.y >= minp_a.y and minp_b.y <= maxp_a.y) or
+			(maxp_b.y >= minp_a.y and maxp_b.y <= maxp_a.y))
+			and
+			((minp_a.z >= minp_b.z and minp_a.z <= maxp_b.z) or
+			(maxp_a.z >= minp_b.z and maxp_a.z <= maxp_b.z) or
+			(minp_b.z >= minp_a.z and minp_b.z <= maxp_a.z) or
+			(maxp_b.z >= minp_a.z and maxp_b.z <= maxp_a.z))
 end
 --------------------------------------
 --Get plan position relative to world position
