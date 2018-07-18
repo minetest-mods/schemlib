@@ -46,16 +46,12 @@ end
 --------------------------------------
 function plan_class:add_node(plan_pos, node)
 	-- build 3d cache tree
-	if self.data.scm_data_cache[plan_pos.y] == nil then
-		self.data.scm_data_cache[plan_pos.y] = {}
-	end
-	if self.data.scm_data_cache[plan_pos.y][plan_pos.x] == nil then
-		self.data.scm_data_cache[plan_pos.y][plan_pos.x] = {}
-	end
-	if self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z] == nil then
+	self.data.scm_data_cache[plan_pos.y] = self.data.scm_data_cache[plan_pos.y] or {}
+	self.data.scm_data_cache[plan_pos.y][plan_pos.x] = self.data.scm_data_cache[plan_pos.y][plan_pos.x] or {}
+	local replaced_node = self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z]
+	if not replaced_node then
 		self.data.nodecount = self.data.nodecount + 1
 	else
-		local replaced_node = self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z]
 		self.data.nodeinfos[replaced_node.name].count = self.data.nodeinfos[replaced_node.name].count-1
 	end
 
@@ -64,34 +60,23 @@ function plan_class:add_node(plan_pos, node)
 	if not nodeinfo then
 		nodeinfo = {name_orig = node.name, count = 1}
 		self.data.nodeinfos[node.name] = nodeinfo
-
-		-- Merge allways air
-		if node.name == 'air' then
-			node.plan = self
-			node.nodeinfo = nodeinfo
-			nodeinfo.deduplicated_node = node
-		end
-		-- Other nodes could be merged if no param2 support and no metadata exists
-		if not node.meta then
-			if minetest.registered_nodes[node.name] and not minetest.registered_nodes[node.name].paramtype2 then
-				node.plan = self
-				node.nodeinfo = nodeinfo
-				nodeinfo.deduplicated_node = node
-			end
-		end
 	else
 		nodeinfo.count = nodeinfo.count + 1
 	end
-
-	if nodeinfo.deduplicated_node and not node.meta then
-		self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z] = nodeinfo.deduplicated_node 
+	node.nodeinfo = nodeinfo
+	local def = minetest.registered_nodes[node.name]
+	if not node.data.meta and not node.data.prob and def and
+			(not def.paramtype2 or def.paramtype2 == "none") then
+		-- Deduplicated node
+		nodeinfo.deduplicated_node = nodeinfo.deduplicated_node or {
+			name = node.name,
+			nodeinfo = nodeinfo,
+			deduplicated = true,
+		}
+		self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z] = nodeinfo.deduplicated_node
 	else
-		node.plan = self
-		node.nodeinfo = nodeinfo
 		self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z] = node
 	end
-
-
 end
 
 --------------------------------------
@@ -133,31 +118,19 @@ end
 -- Get node from plan
 --------------------------------------
 function plan_class:get_node(plan_pos)
-	local pos = plan_pos
-	if self.data.scm_data_cache[pos.y] == nil then
-		return nil
+	local cached_node = self.data.scm_data_cache[plan_pos.y] and
+			self.data.scm_data_cache[plan_pos.y][plan_pos.x] and
+			self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z]
+	if not cached_node then
+		return
 	end
-	if self.data.scm_data_cache[pos.y][pos.x] == nil then
-		return nil
+	local dedup_node = cached_node
+	if cached_node.deduplicated then
+		dedup_node = node.new(cached_node)
+		dedup_node.nodeinfo = cached_node.nodeinfo
 	end
-	if self.data.scm_data_cache[pos.y][pos.x][pos.z] == nil then
-		return nil
-	end
-	local cached_node = self.data.scm_data_cache[pos.y][pos.x][pos.z]
-	local  dedup_node
-	-- break deduplication for node deduplication
-	if cached_node.nodeinfo.deduplicated_node then
-		dedup_node = {}
-		for k, v in pairs(cached_node) do
-			dedup_node[k] = v
-		end
-		dedup_node = setmetatable(dedup_node, node.node_class)
-	else
-		dedup_node = cached_node
-	end
-	if not dedup_node._plan_pos then
-		dedup_node._plan_pos = pos
-	end
+	dedup_node.plan = self
+	dedup_node._plan_pos = plan_pos
 	return dedup_node
 end
 
@@ -165,19 +138,19 @@ end
 --Delete node from plan
 --------------------------------------
 function plan_class:del_node(pos)
-	if self.data.scm_data_cache[pos.y] ~= nil then
-		if self.data.scm_data_cache[pos.y][pos.x] ~= nil then
-			if self.data.scm_data_cache[pos.y][pos.x][pos.z] ~= nil then
+	if self.data.scm_data_cache[pos.y] then
+		if self.data.scm_data_cache[pos.y][pos.x] then
+			if self.data.scm_data_cache[pos.y][pos.x][pos.z] then
 				local oldnode = self.data.scm_data_cache[pos.y][pos.x][pos.z]
 				self.data.nodeinfos[oldnode.name].count = self.data.nodeinfos[oldnode.name].count - 1
 				self.data.nodecount = self.data.nodecount - 1
 				self.data.scm_data_cache[pos.y][pos.x][pos.z] = nil
 			end
-			if next(self.data.scm_data_cache[pos.y][pos.x]) == nil then
+			if not next(self.data.scm_data_cache[pos.y][pos.x]) then
 				self.data.scm_data_cache[pos.y][pos.x] = nil
 			end
 		end
-		if next(self.data.scm_data_cache[pos.y]) == nil then
+		if not next(self.data.scm_data_cache[pos.y]) then
 			self.data.scm_data_cache[pos.y] = nil
 		end
 	end
