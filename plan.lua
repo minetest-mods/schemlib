@@ -1,6 +1,6 @@
 -- debug-print
---local dprint = print
-local dprint = function() return end
+local dprint = print
+--local dprint = function() return end
 
 local save_restore = schemlib.save_restore
 local modpath = schemlib.modpath
@@ -357,7 +357,7 @@ function plan_class:get_random_plan_pos()
 	local keyset = {}
 	for k in pairs(self.data.scm_data_cache) do table.insert(keyset, k) end
 	if #keyset == 0 then --finished
-		return nil
+		return
 	end
 	local y = keyset[math.random(#keyset)]
 
@@ -371,7 +371,7 @@ function plan_class:get_random_plan_pos()
 	for k in pairs(self.data.scm_data_cache[y][x]) do table.insert(keyset, k) end
 	local z = keyset[math.random(#keyset)]
 
-	if z ~= nil then
+	if z then
 		return {x=x,y=y,z=z}
 	end
 end
@@ -398,11 +398,11 @@ function plan_class:get_chunk_nodes(plan_pos, anchor_pos)
 
 	local ret = {}
 	for y = minv.y, maxv.y do
-		if self.data.scm_data_cache[y] ~= nil then
+		if self.data.scm_data_cache[y] then
 			for x = minv.x, maxv.x do
-				if self.data.scm_data_cache[y][x] ~= nil then
+				if self.data.scm_data_cache[y][x] then
 					for z = minv.z, maxv.z do
-						if self.data.scm_data_cache[y][x][z] ~= nil then
+						if self.data.scm_data_cache[y][x][z] then
 							table.insert(ret, self:get_node({x=x, y=y,z=z}))
 						end
 					end
@@ -672,15 +672,13 @@ function plan_class:do_add_chunk_voxel(plan_pos)
 	self._vm:write_to_map()
 
 	-- fix the nodes
-	if  #meta_fix then
+	if next(meta_fix) or next(on_construct_fix) then
 		minetest.after(0, function(meta_fix, on_construct_fix)
 
-			dprint("on construct calls", #on_construct_fix)
 			for world_pos, func in pairs(on_construct_fix) do
 				func(world_pos)
 			end
 
-			dprint("fix nodes", #meta_fix)
 			for world_pos, mapped in pairs(meta_fix) do
 				minetest.get_meta(world_pos):from_table(mapped.meta)
 			end

@@ -101,7 +101,7 @@ function node_class:get_mapped()
 	mapped.meta = mapped.meta or self.data.meta
 	mapped.prob = mapped.prob or self.data.prob
 
-	if mapped.custom_function ~= nil then
+	if mapped.custom_function then
 		mapped.custom_function(mapped, self)
 		mapped.custom_function = nil
 	end

@@ -224,7 +224,7 @@ function mapping.map(name, plan)
 
 	--disabled by mapping
 	if mr.name == "" then
-		return nil
+		return
 	end
 
 	local node_def = minetest.registered_nodes[mr.name]
@@ -254,7 +254,7 @@ function mapping.map(name, plan)
 		end
 	end
 
-	if mr.cost_item == "" or mr.cost_item == nil then
+	if not mr.cost_item or mr.cost_item == "" then
 		mr.cost_item = mapping.c_free_item
 	end
 

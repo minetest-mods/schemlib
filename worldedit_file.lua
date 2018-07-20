@@ -56,7 +56,6 @@ function worldedit_file.read_header(value)
 	elseif value:find("%{") then -- Raw nested table format
 		return 4, nil, value
 	end
-	return nil
 end
 
 
@@ -69,7 +68,7 @@ function worldedit_file.load_schematic(value, we_origin)
 	local nodes = {}
 	if version == 1 or version == 2 then -- Original flat table format
 		local tables = minetest.deserialize(content)
-		if not tables then return nil end
+		if not tables then return end
 
 		-- Transform the node table into an array of nodes
 		for i = 1, #tables do
@@ -129,7 +128,7 @@ function worldedit_file.load_schematic(value, we_origin)
 			table.insert(nodes, entry)
 		end
 	else
-		return nil
+		return
 	end
 	return nodes
 end
