@@ -40,6 +40,13 @@ local function __torches_compat(mapped, node)
 	end
 end
 
+local function __remove_formspec(mapped, node)
+	-- Chest does use on_rightclick / show_formspec now
+	if mapped.meta and mapped.meta.fields then
+		mapped.meta.fields.formspec = nil
+	end
+end
+
 
 -----------------------------------------------
 -- Unknown nodes mapping
@@ -119,6 +126,11 @@ local default_replacements = {
 
 	["default:torch"]               = { custom_function = __torches_compat },
 	["torches:wall"]                = { name = "default:torch_wall" },
+
+	-- Chest does use on_rightclick / show_formspec now
+	["default:chest"]        = {custom_function = __remove_formspec },
+	["default:chest_locked"] = {custom_function = __remove_formspec },
+
 }
 
 -----------------------------------------------
