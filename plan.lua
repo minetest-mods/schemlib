@@ -16,7 +16,10 @@ plan_class.__index = plan_class
 --------------------------------------
 --	Plan class-methods and attributes
 --------------------------------------
-local plan = {}
+local plan = {
+	mapgen_process = {}
+}
+local mapgen_process = plan.mapgen_process
 
 --------------------------------------
 --	Create new plan object
@@ -604,7 +607,7 @@ end
 --------------------------------------
 --add/build a chunk
 --------------------------------------
-function plan_class:do_add_chunk(plan_pos)
+function plan_class:do_add_chunk_place(plan_pos)
 	dprint("---build chunk", minetest.pos_to_string(plan_pos))
 	local chunk_nodes = self:get_chunk_nodes(plan_pos)
 	dprint("Instant build of chunk: nodes:", #chunk_nodes)
@@ -628,14 +631,9 @@ function plan_class:load_region(min_world_pos, max_world_pos)
 end
 
 --------------------------------------
----add/build a chunk using VoxelArea
+-- add/build a chunk using VoxelArea (internal usage)
 --------------------------------------
-function plan_class:do_add_chunk_voxel(plan_pos)
-	local chunk_pos = self:get_world_pos(plan_pos)
-	dprint("---build chunk using voxel", minetest.pos_to_string(plan_pos))
-
-	self:load_region(chunk_pos, chunk_pos)
-
+function plan_class:do_add_chunk_voxel_int()
 	local meta_fix = {}
 	local on_construct_fix = {}
 
@@ -686,6 +684,105 @@ function plan_class:do_add_chunk_voxel(plan_pos)
 	end
 end
 
+local function emergeblocks_callback(pos, action, num_calls_remaining, ctx)
+	if not ctx.total_blocks then
+		ctx.total_blocks   = num_calls_remaining + 1
+		ctx.current_blocks = 0
+	end
+	ctx.current_blocks = ctx.current_blocks + 1
+
+	if ctx.current_blocks == ctx.total_blocks then
+		ctx.plan:load_region(ctx.pos, ctx.pos)
+		ctx.plan:do_add_chunk_voxel_int()
+		local pos_hash = minetest.hash_node_position(ctx.pos)
+		mapgen_process[pos_hash] = nil
+		if ctx.after_call_func then
+			ctx.after_call_func(ctx.plan)
+		end
+	end
+end
+
+--------------------------------------
+-- add/build a chunk using VoxelArea
+--------------------------------------
+function plan_class:do_add_chunk_voxel(plan_pos, after_call_func)
+	-- Register for on_generate build
+	local chunk_pos = self:get_world_pos(plan_pos)
+	local BLOCKSIZE = 16
+	chunk_pos.x = (math.floor(chunk_pos.x/BLOCKSIZE))*BLOCKSIZE
+	chunk_pos.y = (math.floor(chunk_pos.y/BLOCKSIZE))*BLOCKSIZE
+	chunk_pos.z = (math.floor(chunk_pos.z/BLOCKSIZE))*BLOCKSIZE
+	minetest.emerge_area(chunk_pos, chunk_pos, emergeblocks_callback, {
+		plan = self,
+		pos = chunk_pos,
+		after_call_func = after_call_func
+	})
+end
+
+--------------------------------------
+-- add/build a chunk using VoxelArea called from mapgen
+--------------------------------------
+function plan_class:do_add_chunk_mapgen()
+	plan._vm, plan._vm_minp, plan._vm_maxp = minetest.get_mapgen_object("voxelmanip")
+	plan.vm_area = VoxelArea:new({MinEdge = plan._vm_minp, MaxEdge = plan._vm_maxp})
+	plan.vm_data = plan._vm:get_data()
+	plan.vm_param2_data = plan._vm:get_param2_data()
+	self:do_add_chunk_voxel_int()
+	local pos_hash = minetest.hash_node_position(plan._vm_minp)
+	mapgen_process[pos_hash] = nil
+end
+
+
+--------------------------------------
+-- Add all chunks using VoxelArea asynchronous
+--------------------------------------
+function plan_class:do_add_all_voxel_async()
+	if not self:get_status() == "build" then
+		return
+	end
+
+	local random_pos = self:get_random_plan_pos()
+	if not random_pos then
+		return
+	end
+
+	dprint("---async build chunk", minetest.pos_to_string(random_pos))
+	self:do_add_chunk_voxel(random_pos, function(self)
+		dprint("async build nodes left:", self.data.nodecount)
+		if self:get_status() == "build" then
+			--start next plan chain
+			minetest.after(0.1, self.do_add_all_voxel_async, self)
+		end
+	end)
+end
+
+--------------------------------------
+---add/build a chunk using VoxelArea
+--------------------------------------
+function plan_class:do_add_all_mapgen_async()
+	-- Register for on_generate build
+	local BLOCKSIZE = 16
+	local minp = self:get_world_minp()
+	local maxp = self:get_world_maxp()
+	minp.x = (math.floor(minp.x/BLOCKSIZE))*BLOCKSIZE
+	minp.y = (math.floor(minp.y/BLOCKSIZE))*BLOCKSIZE
+	minp.z = (math.floor(minp.z/BLOCKSIZE))*BLOCKSIZE
+	maxp.x = (math.floor(maxp.x/BLOCKSIZE))*BLOCKSIZE
+	maxp.y = (math.floor(maxp.y/BLOCKSIZE))*BLOCKSIZE
+	maxp.z = (math.floor(maxp.z/BLOCKSIZE))*BLOCKSIZE
+	for x = minp.x, maxp.y, BLOCKSIZE do
+		for y = minp.y, maxp.y, BLOCKSIZE do
+			for z = minp.z, maxp.z, BLOCKSIZE do
+				local pos_hash = minetest.hash_node_position({x=x, y=y, z=z})
+				mapgen_process[pos_hash] = self
+			end
+		end
+	end
+end
+
+--------------------------------------
+--- Get the building status. (new, build, pause, finished)
+--------------------------------------
 function plan_class:get_status()
 	if self.status == "build" then
 		if self.data.nodecount == 0 then
@@ -699,11 +796,26 @@ function plan_class:get_status()
 	return self.status
 end
 
+--------------------------------------
+--- Set the building status. (new, build, pause, finished)
+--------------------------------------
 function plan_class:set_status(status)
 	self.status = status
 	if self.on_status then -- trigger updates trough this hook
 		self:on_status(self.status)
 	end
 end
+
+--------------------------------------
+---Process registered on generated chunks
+--------------------------------------
+minetest.register_on_generated(function(minp, maxp, blockseed)
+	local pos_hash = minetest.hash_node_position(minp)
+	local plan = mapgen_process[pos_hash]
+	if not plan then
+		return
+	end
+	plan:do_add_chunk_mapgen()
+end)
 
 return plan

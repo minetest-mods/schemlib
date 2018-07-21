@@ -24,6 +24,13 @@ License: LGPLv2
 ### class-methods
   - plan_obj = schemlib.plan.new([plan_id][,anchor_pos])    - Constructor - create a new plan object
 
+### class-attributes/tables
+  - plan.mapgen_process  - registered mapgen processing
+```
+  local chunk_key = minetest.hash_node_position(minp)
+  plan.mapgen_process[chunk_key] = plan_obj
+```
+
 ### object methods
 #### Methods in draft mode (without anchor)
   - plan_obj:add_node(plan_pos, node)       - add a node to plan - if adjustment is given, the min/max and ground_y is calculated
@@ -50,8 +57,11 @@ License: LGPLv2
   - plan_obj:get_plan_pos(world_pos[,anchor_pos]) - get a plan position for a world position
   - plan_obj:check_overlap(pos1, pos2[,add_distance][,anchor_pos]) - check if the plan overlap the area in pos1/pos2
   - plan_obj:get_chunk_nodes(plan_pos[,anchor_pos]) - get a list of all nodes from chunk of a pos
-  - plan_obj:do_add_chunk(plan_pos) - Place all nodes for chunk in real world
-  - plan_obj:do_add_chunk_voxel(plan_pos)   - Place all nodes for chunk in real world using voxelmanip
+  - plan_obj:do_add_chunk_place(plan_pos) - Place all nodes for chunk in real world using add_node()
+  - plan_obj:do_add_chunk_voxel(plan_pos)  - Place all nodes for chunk in real world using voxelmanip after emerge area
+  - plan_obj:do_add_chunk_mapgen()  - Place all nodes for current chunk in on_mapgen. Used internally for registered chunks in plan.mapgen_process
+  - plan_obj:do_add_all_voxel_async() - Place all plan nodes in multiple async calls of do_add_chunk_voxel()
+  - plan_obj:do_add_all_mapgen_async() - Register all nodes for mapgen processing
   - plan_obj:load_region(min_world_pos[, max_world_pos]) - Load a Voxel-Manip for faster lookups to the real world
 
 ### Hooks
