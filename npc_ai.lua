@@ -6,14 +6,12 @@ local mapping = schemlib.mapping
 local npc_ai = {}
 
 local npc_ai_class = {}
-npc_ai_class.__index = npc_ai_class
-
+local mpc_ai_class_mt = {__index = npc_ai_class}
 --------------------------------------
 --	Create NPC-AI object
 --------------------------------------
 function npc_ai.new(plan, build_distance)
-	local self = setmetatable({}, npc_ai_class)
-	self.__index = npc_ai_class
+	local self = setmetatable({}, mpc_ai_class_mt)
 	self.plan = plan
 	self.build_distance = build_distance or 3
 	return self
@@ -93,7 +91,6 @@ end
 --	Get rating for node which one should be built at next
 --------------------------------------
 function npc_ai_class:get_node_rating(node, npcpos)
-
 	local world_pos = node:get_world_pos()
 	local mapped = node:get_mapped()
 	local distance_pos = table.copy(world_pos)
@@ -204,7 +201,10 @@ function npc_ai_class:plan_target_get(npcpos)
 	local chunk_nodes, min_world_pos, max_world_pos = self.plan:get_chunk_nodes(npcpos_plan)
 	-- add last selection to the current chunk to compare
 	if self.lasttarget_pos then
-		table.insert(chunk_nodes, self.plan:get_node(self.lasttarget_pos))
+		local last_target_node = self.plan:get_node(self.lasttarget_pos)
+		if last_target_node then
+			table.insert(chunk_nodes, last_target_node)
+		end
 	end
 	dprint("Chunk loaeded: nodes:", #chunk_nodes)
 	self.plan:load_region(min_world_pos, max_world_pos)

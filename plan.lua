@@ -8,82 +8,98 @@ local node = schemlib.node
 local mapping = schemlib.mapping
 
 --------------------------------------
---	Plan class
+-- Plan class
 --------------------------------------
 local plan_class = {}
-plan_class.__index = plan_class
-
+local plan_class_mt = {__index = plan_class}
 --------------------------------------
---	Plan class-methods and attributes
+-- Plan class-methods and attributes
 --------------------------------------
 local plan = {
-	mapgen_process = {}
+	mapgen_process = {},
+	plan_class = plan_class
 }
 local mapgen_process = plan.mapgen_process
 
 --------------------------------------
---	Create new plan object
+-- Create new plan object
 --------------------------------------
 function plan.new(plan_id , anchor_pos)
-	local self = setmetatable({}, plan_class)
-	self.__index = plan_class
+	local self = setmetatable({}, plan_class_mt)
 	self.plan_id = plan_id
-	self.anchor_pos = anchor_pos
-	self.facedir = 0
-	self.mirrored = false
+	self.scm_data_cache = {}
+	self.mapping_cache = {}
 	self.data = {
+			status = "new",
 			min_pos = {},
 			max_pos = {},
 			groundnode_count = 0,
-			ground_y = -1, --if nothing defined, it is under the building
-			scm_data_cache = {},
 			nodeinfos = {},
 			nodecount = 0,
+			ground_y = -1, --if nothing defined, it is under the building
+
+			facedir = 0,
+			mirrored = false,
+			anchor_pos = anchor_pos,
 		}
-	self.status = "new"
 	return self -- the plan object
 end
 
 --------------------------------------
---Add node to plan
+-- Add node to plan
 --------------------------------------
 function plan_class:add_node(plan_pos, node)
-	-- build 3d cache tree
-	self.data.scm_data_cache[plan_pos.y] = self.data.scm_data_cache[plan_pos.y] or {}
-	self.data.scm_data_cache[plan_pos.y][plan_pos.x] = self.data.scm_data_cache[plan_pos.y][plan_pos.x] or {}
-	local replaced_node = self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z]
-	if not replaced_node then
-		self.data.nodecount = self.data.nodecount + 1
+	-- check if any old node is replaced
+	local replaced_node = self:get_node(plan_pos)
+	if replaced_node then
+		self.data.nodeinfos[replaced_node.name].count = self.data.nodeinfos[replaced_node.name].count - 1
 	else
-		self.data.nodeinfos[replaced_node.name].count = self.data.nodeinfos[replaced_node.name].count-1
+		self.data.nodecount = self.data.nodecount + 1
+		self.scm_data_cache[plan_pos.y] = self.scm_data_cache[plan_pos.y] or {}
+		self.scm_data_cache[plan_pos.y][plan_pos.x] = self.scm_data_cache[plan_pos.y][plan_pos.x] or {}
 	end
 
-	-- insert to nodeinfos
-	local nodeinfo = self.data.nodeinfos[node.name]
+	-- Parse input data
+	local node_name, node_data, node_meta
+	if type(node) == "string" then
+		node_name = node
+		node_data = node
+	else
+		node_name = node.name
+		if node.meta then
+			if (node.meta.fields and next(node.meta.fields)) or
+					(node.meta.inventory and next(node.meta.inventory)) then
+				node_meta = node.meta
+			end
+		end
+	end
+
+	-- Adjust nodeinfo and prepare mapping cache
+	local nodeinfo = self.data.nodeinfos[node_name]
 	if not nodeinfo then
-		nodeinfo = {name_orig = node.name, count = 1}
-		self.data.nodeinfos[node.name] = nodeinfo
+		nodeinfo = {name = node_name, count = 1}
+		self.data.nodeinfos[node_name] = nodeinfo
 	else
 		nodeinfo.count = nodeinfo.count + 1
 	end
-	node.nodeinfo = nodeinfo
-	local def = minetest.registered_nodes[node.name]
-	if not node.data.meta and not node.data.prob and def and
-			(not def.paramtype2 or def.paramtype2 == "none") then
-		-- Deduplicated node
-		nodeinfo.deduplicated_node = nodeinfo.deduplicated_node or {
-			name = node.name,
-			nodeinfo = nodeinfo,
-			deduplicated = true,
-		}
-		self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z] = nodeinfo.deduplicated_node
-	else
-		self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z] = node
+
+	-- Check if storage could be stripped to name only
+	if not node_data and not node_meta and not node.prob then
+		local def = minetest.registered_nodes[node_name]
+		if def and (not def.paramtype2 or def.paramtype2 == "none") then
+			node_data = node.name
+		end
 	end
+
+	if not node_data then
+		node_data = { name = node_name, meta = node_meta, prob = node.prob, param2 = node.param2 }
+	end
+	self.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z] = node_data
+	self.modified = true
 end
 
 --------------------------------------
---Adjust building size and ground info
+-- Adjust building size and ground info
 --------------------------------------
 function plan_class:adjust_building_info(plan_pos, node)
 	-- adjust min/max position information
@@ -121,236 +137,53 @@ end
 -- Get node from plan
 --------------------------------------
 function plan_class:get_node(plan_pos)
-	local cached_node = self.data.scm_data_cache[plan_pos.y] and
-			self.data.scm_data_cache[plan_pos.y][plan_pos.x] and
-			self.data.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z]
+	local cached_node = self.scm_data_cache[plan_pos.y] and
+			self.scm_data_cache[plan_pos.y][plan_pos.x] and
+			self.scm_data_cache[plan_pos.y][plan_pos.x][plan_pos.z]
 	if not cached_node then
 		return
 	end
-	local dedup_node = cached_node
-	if cached_node.deduplicated then
-		dedup_node = node.new(cached_node)
-		dedup_node.nodeinfo = cached_node.nodeinfo
+	local ret_node
+	if type(cached_node) == "string" then
+		ret_node = node.new({name = cached_node})
+	else
+		ret_node = node.new(cached_node)
 	end
-	dedup_node.plan = self
-	dedup_node._plan_pos = plan_pos
-	return dedup_node
+	ret_node.nodeinfo = self.data.nodeinfos[ret_node.name]
+	ret_node.plan = self
+	ret_node._plan_pos = plan_pos
+	return ret_node
 end
 
 --------------------------------------
---Delete node from plan
+-- Delete node from plan
 --------------------------------------
 function plan_class:del_node(pos)
-	if self.data.scm_data_cache[pos.y] then
-		if self.data.scm_data_cache[pos.y][pos.x] then
-			if self.data.scm_data_cache[pos.y][pos.x][pos.z] then
-				local oldnode = self.data.scm_data_cache[pos.y][pos.x][pos.z]
-				self.data.nodeinfos[oldnode.name].count = self.data.nodeinfos[oldnode.name].count - 1
-				self.data.nodecount = self.data.nodecount - 1
-				self.data.scm_data_cache[pos.y][pos.x][pos.z] = nil
-			end
-			if not next(self.data.scm_data_cache[pos.y][pos.x]) then
-				self.data.scm_data_cache[pos.y][pos.x] = nil
-			end
-		end
-		if not next(self.data.scm_data_cache[pos.y]) then
-			self.data.scm_data_cache[pos.y] = nil
-		end
-	end
-end
-
---------------------------------------
---Flood ta buildingplan with air
---------------------------------------
-function plan_class:apply_flood_with_air(add_max, add_min, add_top)
-	self.data.ground_y =  math.floor(self.data.ground_y)
-	add_max = add_max or 3
-	add_min = add_min or 0
-	add_top = add_top or 5
-
-	-- cache air_id
-	local air_id
-
-	dprint("create flatting plan")
-	for y = self.data.min_pos.y, self.data.max_pos.y + add_top do
-		--calculate additional grounding
-		if y > self.data.ground_y then --only over ground
-			local high = y-self.data.ground_y
-			add_min = high + 1
-			if add_min > add_max then --set to max
-				add_min = add_max
-			end
-		end
-
-		dprint("flat level:", y)
-		local air_node = {name = "air"}
-		for x = self.data.min_pos.x - add_min, self.data.max_pos.x + add_min do
-			for z = self.data.min_pos.z - add_min, self.data.max_pos.z + add_min do
-				local pos = {x=x, y=y, z=z}
-				if not self:get_node(pos) then
-					self:add_node(pos, node.new(air_node))
+	if self.scm_data_cache[pos.y] then
+		if self.scm_data_cache[pos.y][pos.x] then
+			if self.scm_data_cache[pos.y][pos.x][pos.z] then
+				local oldnode = self.scm_data_cache[pos.y][pos.x][pos.z]
+				if type(oldnode) == "table" then
+					oldnode = oldnode.name
 				end
+				self.data.nodeinfos[oldnode].count = self.data.nodeinfos[oldnode].count - 1
+				self.data.nodecount = self.data.nodecount - 1
+				self.scm_data_cache[pos.y][pos.x][pos.z] = nil
+			end
+			if not next(self.scm_data_cache[pos.y][pos.x]) then
+				self.scm_data_cache[pos.y][pos.x] = nil
 			end
 		end
+		if not next(self.scm_data_cache[pos.y]) then
+			self.scm_data_cache[pos.y] = nil
+		end
 	end
-	dprint("flatting plan done")
+	self.modified = true
 end
 
 --------------------------------------
---Get world position relative to plan position
+-- Get a random position of an existing node in plan
 --------------------------------------
-function plan_class:get_world_pos(plan_pos, anchor_pos)
-	local apos = anchor_pos or self.anchor_pos
-	local pos
-	if self.mirrored then
-		pos = table.copy(plan_pos)
-		pos.x = -pos.x
-	else
-		pos = plan_pos
-	end
-	local facedir_rotated = {
-			[0] = function(pos,apos) return {
-					x=pos.x+apos.x,
-					y=pos.y+apos.y,
-					z=pos.z+apos.z,
-			}end,
-			[1] = function(pos,apos) return {
-					x=pos.z+apos.x,
-					y=pos.y+apos.y,
-					z=-pos.x+apos.z,
-			} end,
-			[2] = function(pos,apos) return {
-					x=-pos.x+apos.x,
-					y=pos.y+apos.y,
-					z=-pos.z+apos.z,
-			} end,
-			[3] = function(pos,apos) return {
-					x=-pos.z+apos.x,
-					y=pos.y+apos.y,
-					z=pos.x+apos.z,
-			} end,
-		}
-	local ret = facedir_rotated[self.facedir](pos, apos)
-	ret.y = ret.y - self.data.ground_y - 1
-	return ret
-end
-
---------------------------------------
---Get world minimum position relative to plan position
---------------------------------------
-function plan_class:get_world_minp(anchor_pos)
-	local pos = self:get_world_pos(self.data.min_pos, anchor_pos)
-	local pos2 = self:get_world_pos(self.data.max_pos, anchor_pos)
-	if pos2.x < pos.x then
-		pos.x = pos2.x
-	end
-	if pos2.y < pos.y then
-		pos.y = pos2.y
-	end
-	if pos2.z < pos.z then
-		pos.z = pos2.z
-	end
-	return pos
-end
-
---------------------------------------
---Get world maximum relative to plan position
---------------------------------------
-function plan_class:get_world_maxp(anchor_pos)
-	local pos = self:get_world_pos(self.data.max_pos, anchor_pos)
-	local pos2 = self:get_world_pos(self.data.min_pos, anchor_pos)
-	if pos2.x > pos.x then
-		pos.x = pos2.x
-	end
-	if pos2.y > pos.y then
-		pos.y = pos2.y
-	end
-	if pos2.z > pos.z then
-		pos.z = pos2.z
-	end
-	return pos
-end
-
---------------------------------------
---Check if world position is in plan
---------------------------------------
-function plan_class:contains(chkpos, anchor_pos)
-	local minp = self:get_world_minp(anchor_pos)
-	local maxp = self:get_world_maxp(anchor_pos)
-
-	return (chkpos.x >= minp.x) and (chkpos.x <= maxp.x) and
-		(chkpos.y >= minp.y) and (chkpos.y <= maxp.y) and
-		(chkpos.z >= minp.z) and (chkpos.z <= maxp.z)
-end
-
-
---------------------------------------
---Check if the plan overlaps with given area
---------------------------------------
-function plan_class:check_overlap(minp, maxp, add_distance, anchor_pos)
-
-	add_distance = add_distance or 0
-
-	local minp_a = vector.subtract(minp, add_distance)
-	local maxp_a = vector.add(maxp, add_distance)
-
-	local minp_b = vector.subtract(self:get_world_minp(anchor_pos), add_distance)
-	local maxp_b = vector.add(self:get_world_maxp(anchor_pos), add_distance)
-
-	return ((minp_a.x >= minp_b.x and minp_a.x <= maxp_b.x) or
-			(maxp_a.x >= minp_b.x and maxp_a.x <= maxp_b.x) or
-			(minp_b.x >= minp_a.x and minp_b.x <= maxp_a.x) or
-			(maxp_b.x >= minp_a.x and maxp_b.x <= maxp_a.x))
-			and
-			((minp_a.y >= minp_b.y and minp_a.y <= maxp_b.y) or
-			(maxp_a.y >= minp_b.y and maxp_a.y <= maxp_b.y) or
-			(minp_b.y >= minp_a.y and minp_b.y <= maxp_a.y) or
-			(maxp_b.y >= minp_a.y and maxp_b.y <= maxp_a.y))
-			and
-			((minp_a.z >= minp_b.z and minp_a.z <= maxp_b.z) or
-			(maxp_a.z >= minp_b.z and maxp_a.z <= maxp_b.z) or
-			(minp_b.z >= minp_a.z and minp_b.z <= maxp_a.z) or
-			(maxp_b.z >= minp_a.z and maxp_b.z <= maxp_a.z))
-end
---------------------------------------
---Get plan position relative to world position
---------------------------------------
-function plan_class:get_plan_pos(world_pos, anchor_pos)
-	local apos = anchor_pos or self.anchor_pos
-	local facedir_rotated = {
-			[0] = function(pos,apos) return {
-					x=pos.x-apos.x,
-					y=pos.y-apos.y,
-					z=pos.z-apos.z
-				} end,
-			[1] = function(pos,apos) return {
-					x=-(pos.z-apos.z),
-					y=pos.y-apos.y,
-					z=(pos.x-apos.x),
-			} end,
-			[2] = function(pos,apos) return {
-					x=-(pos.x-apos.x),
-					y=pos.y-apos.y,
-					z=-(pos.z-apos.z),
-			} end,
-			[3] = function(pos,apos) return {
-					x=pos.z-apos.z,
-					y=pos.y-apos.y,
-					z=-(pos.x-apos.x),
-			} end,
-		}
-	local ret = facedir_rotated[self.facedir](world_pos, apos)
-
-	if self.mirrored then
-		ret.x = -ret.x
-	end
-	ret.y = ret.y + self.data.ground_y + 1
-	return ret
-end
-
-	--------------------------------------
-	--Get a random position of an existing node in plan
-	--------------------------------------
 -- get nodes for selection which one should be build
 -- skip parameter is randomized
 function plan_class:get_random_plan_pos()
@@ -358,7 +191,7 @@ function plan_class:get_random_plan_pos()
 
 	-- get random existing y
 	local keyset = {}
-	for k in pairs(self.data.scm_data_cache) do table.insert(keyset, k) end
+	for k in pairs(self.scm_data_cache) do table.insert(keyset, k) end
 	if #keyset == 0 then --finished
 		return
 	end
@@ -366,55 +199,17 @@ function plan_class:get_random_plan_pos()
 
 	-- get random existing x
 	keyset = {}
-	for k in pairs(self.data.scm_data_cache[y]) do table.insert(keyset, k) end
+	for k in pairs(self.scm_data_cache[y]) do table.insert(keyset, k) end
 	local x = keyset[math.random(#keyset)]
 
 	-- get random existing z
 	keyset = {}
-	for k in pairs(self.data.scm_data_cache[y][x]) do table.insert(keyset, k) end
+	for k in pairs(self.scm_data_cache[y][x]) do table.insert(keyset, k) end
 	local z = keyset[math.random(#keyset)]
 
 	if z then
 		return {x=x,y=y,z=z}
 	end
-end
-
---------------------------------------
---Get a nodes list for a world chunk
---------------------------------------
-function plan_class:get_chunk_nodes(plan_pos, anchor_pos)
--- calculate the begin of the chunk
-	--local BLOCKSIZE = core.MAP_BLOCKSIZE
-	local BLOCKSIZE = 16
-	local wpos = self:get_world_pos(plan_pos, anchor_pos)
-	local minp = {}
-	minp.x = (math.floor(wpos.x/BLOCKSIZE))*BLOCKSIZE
-	minp.y = (math.floor(wpos.y/BLOCKSIZE))*BLOCKSIZE
-	minp.z = (math.floor(wpos.z/BLOCKSIZE))*BLOCKSIZE
-	local maxp = vector.add(minp, 16)
-
-	dprint("nodes for chunk (real-pos)", minetest.pos_to_string(minp), minetest.pos_to_string(maxp))
-
-	local minv = self:get_plan_pos(minp)
-	local maxv = self:get_plan_pos(maxp)
-	dprint("nodes for chunk (plan-pos)", minetest.pos_to_string(minv), minetest.pos_to_string(maxv))
-
-	local ret = {}
-	for y = minv.y, maxv.y do
-		if self.data.scm_data_cache[y] then
-			for x = minv.x, maxv.x do
-				if self.data.scm_data_cache[y][x] then
-					for z = minv.z, maxv.z do
-						if self.data.scm_data_cache[y][x][z] then
-							table.insert(ret, self:get_node({x=x, y=y,z=z}))
-						end
-					end
-				end
-			end
-		end
-	end
-	dprint("nodes in chunk to build", #ret)
-	return ret, minp, maxp -- minp/maxp are worldpos
 end
 
 --------------------------------------
@@ -442,9 +237,8 @@ function plan_class:read_from_schem_file(filename)
 						y = math.floor((i-1)/schematic.size.x) % schematic.size.y,
 						x = (i-1) % schematic.size.x
 					}
-				local new_node = node.new(ent)
-				self:add_node(pos, new_node)
-				self:adjust_building_info(pos, new_node)
+				self:add_node(pos, ent)
+				self:adjust_building_info(pos, ent)
 			end
 		end
 	-- WorldEdit files
@@ -458,15 +252,50 @@ function plan_class:read_from_schem_file(filename)
 		-- analyze the file
 		for i, ent in ipairs( nodes ) do
 			local pos = {x=ent.x, y=ent.y, z=ent.z}
-			local new_node = node.new(ent)
-			self:add_node(pos, new_node)
-			self:adjust_building_info(pos, new_node)
+			self:add_node(pos, ent)
+			self:adjust_building_info(pos, ent)
 		end
 	end
 end
 
 --------------------------------------
---Propose anchor position for the plan
+-- Flood ta buildingplan with air
+--------------------------------------
+function plan_class:apply_flood_with_air(add_max, add_min, add_top)
+	self.data.ground_y =  math.floor(self.data.ground_y)
+	add_max = add_max or 3
+	add_min = add_min or 0
+	add_top = add_top or 5
+
+	-- cache air_id
+	local air_id
+
+	dprint("create flatting plan")
+	for y = self.data.min_pos.y, self.data.max_pos.y + add_top do
+		--calculate additional grounding
+		if y > self.data.ground_y then --only over ground
+			local high = y-self.data.ground_y
+			add_min = high + 1
+			if add_min > add_max then --set to max
+				add_min = add_max
+			end
+		end
+
+		dprint("flat level:", y)
+		for x = self.data.min_pos.x - add_min, self.data.max_pos.x + add_min do
+			for z = self.data.min_pos.z - add_min, self.data.max_pos.z + add_min do
+				local pos = {x=x, y=y, z=z}
+				if not self:get_node(pos) then
+					self:add_node(pos, "air")
+				end
+			end
+		end
+	end
+	dprint("flatting plan done")
+end
+
+--------------------------------------
+-- Propose anchor position for the plan
 --------------------------------------
 function plan_class:propose_anchor(world_pos, do_check, add_xz)
 	add_xz = add_xz or 4 --distance to other buildings to check should be the same additional air filler + distance
@@ -605,7 +434,218 @@ function plan_class:propose_anchor(world_pos, do_check, add_xz)
 end
 
 --------------------------------------
---add/build a chunk
+-- Get world position relative to plan position
+--------------------------------------
+function plan_class:get_world_pos(plan_pos, anchor_pos)
+	local apos = anchor_pos or self.data.anchor_pos
+	local pos
+	if self.data.mirrored then
+		pos = {x=plan_pos.x, y=plan_pos.y, z=plan_pos.z}
+		pos.x = -pos.x
+	else
+		pos = plan_pos
+	end
+	local facedir_rotated = {
+			[0] = function(pos,apos) return {
+					x=pos.x+apos.x,
+					y=pos.y+apos.y,
+					z=pos.z+apos.z,
+			}end,
+			[1] = function(pos,apos) return {
+					x=pos.z+apos.x,
+					y=pos.y+apos.y,
+					z=-pos.x+apos.z,
+			} end,
+			[2] = function(pos,apos) return {
+					x=-pos.x+apos.x,
+					y=pos.y+apos.y,
+					z=-pos.z+apos.z,
+			} end,
+			[3] = function(pos,apos) return {
+					x=-pos.z+apos.x,
+					y=pos.y+apos.y,
+					z=pos.x+apos.z,
+			} end,
+		}
+	local ret = facedir_rotated[self.data.facedir](pos, apos)
+	ret.y = ret.y - self.data.ground_y - 1
+	return ret
+end
+
+--------------------------------------
+-- Get plan position relative to world position
+--------------------------------------
+function plan_class:get_plan_pos(world_pos, anchor_pos)
+	local apos = anchor_pos or self.data.anchor_pos
+	local facedir_rotated = {
+			[0] = function(pos,apos) return {
+					x=pos.x-apos.x,
+					y=pos.y-apos.y,
+					z=pos.z-apos.z
+				} end,
+			[1] = function(pos,apos) return {
+					x=-(pos.z-apos.z),
+					y=pos.y-apos.y,
+					z=(pos.x-apos.x),
+			} end,
+			[2] = function(pos,apos) return {
+					x=-(pos.x-apos.x),
+					y=pos.y-apos.y,
+					z=-(pos.z-apos.z),
+			} end,
+			[3] = function(pos,apos) return {
+					x=pos.z-apos.z,
+					y=pos.y-apos.y,
+					z=-(pos.x-apos.x),
+			} end,
+		}
+	local ret = facedir_rotated[self.data.facedir](world_pos, apos)
+	if self.data.mirrored then
+		ret.x = -ret.x
+	end
+	ret.y = ret.y + self.data.ground_y + 1
+	return ret
+end
+
+--------------------------------------
+-- Get world minimum position relative to plan position
+--------------------------------------
+function plan_class:get_world_minp(anchor_pos)
+	local pos = self:get_world_pos(self.data.min_pos, anchor_pos)
+	local pos2 = self:get_world_pos(self.data.max_pos, anchor_pos)
+	if pos2.x < pos.x then
+		pos.x = pos2.x
+	end
+	if pos2.y < pos.y then
+		pos.y = pos2.y
+	end
+	if pos2.z < pos.z then
+		pos.z = pos2.z
+	end
+	return pos
+end
+
+--------------------------------------
+-- Get world maximum relative to plan position
+--------------------------------------
+function plan_class:get_world_maxp(anchor_pos)
+	local pos = self:get_world_pos(self.data.max_pos, anchor_pos)
+	local pos2 = self:get_world_pos(self.data.min_pos, anchor_pos)
+	if pos2.x > pos.x then
+		pos.x = pos2.x
+	end
+	if pos2.y > pos.y then
+		pos.y = pos2.y
+	end
+	if pos2.z > pos.z then
+		pos.z = pos2.z
+	end
+	return pos
+end
+
+--------------------------------------
+-- Check if world position is in plan
+--------------------------------------
+function plan_class:contains(chkpos, anchor_pos)
+	local minp = self:get_world_minp(anchor_pos)
+	local maxp = self:get_world_maxp(anchor_pos)
+
+	return (chkpos.x >= minp.x) and (chkpos.x <= maxp.x) and
+		(chkpos.y >= minp.y) and (chkpos.y <= maxp.y) and
+		(chkpos.z >= minp.z) and (chkpos.z <= maxp.z)
+end
+
+--------------------------------------
+-- Check if the plan overlaps with given area
+--------------------------------------
+function plan_class:check_overlap(minp, maxp, add_distance, anchor_pos)
+	add_distance = add_distance or 0
+
+	local minp_a = vector.subtract(minp, add_distance)
+	local maxp_a = vector.add(maxp, add_distance)
+
+	local minp_b = vector.subtract(self:get_world_minp(anchor_pos), add_distance)
+	local maxp_b = vector.add(self:get_world_maxp(anchor_pos), add_distance)
+
+	local overlap_pos = {}
+
+	overlap_pos.x =
+			(minp_a.x >= minp_b.x and minp_a.x <= maxp_b.x) and math.floor((minp_a.x+maxp_b.x)/2) or
+			(maxp_a.x >= minp_b.x and maxp_a.x <= maxp_b.x) and math.floor((maxp_a.x+minp_b.x)/2) or
+			(minp_b.x >= minp_a.x and minp_b.x <= maxp_a.x) and math.floor((minp_b.x+maxp_a.x)/2) or
+			(maxp_b.x >= minp_a.x and maxp_b.x <= maxp_a.x) and math.floor((maxp_b.x+minp_a.x)/2)
+
+	if not overlap_pos.x then
+		return
+	end
+
+	overlap_pos.z =
+			(minp_a.z >= minp_b.z and minp_a.z <= maxp_b.z) and math.floor((minp_a.z+maxp_b.z)/2) or
+			(maxp_a.z >= minp_b.z and maxp_a.z <= maxp_b.z) and math.floor((maxp_a.z+minp_b.z)/2) or
+			(minp_b.z >= minp_a.z and minp_b.z <= maxp_a.z) and math.floor((minp_b.z+maxp_a.z)/2) or
+			(maxp_b.z >= minp_a.z and maxp_b.z <= maxp_a.z) and math.floor((maxp_b.z+minp_a.z)/2)
+	if not overlap_pos.z then
+		return
+	end
+
+	overlap_pos.y =
+			(minp_a.y >= minp_b.y and minp_a.y <= maxp_b.y) and math.floor((minp_a.y+maxp_b.y)/2) or
+			(maxp_a.y >= minp_b.y and maxp_a.y <= maxp_b.y) and math.floor((maxp_a.y+minp_b.y)/2) or
+			(minp_b.y >= minp_a.y and minp_b.y <= maxp_a.y) and math.floor((minp_b.y+maxp_a.y)/2) or
+			(maxp_b.y >= minp_a.y and maxp_b.y <= maxp_a.y) and math.floor((maxp_b.y+minp_a.y)/2)
+	if not overlap_pos.y then
+		return
+	end
+
+	dprint("Overlap",
+			"minp_a:"..minetest.pos_to_string(minp_a),
+			"maxp_a:"..minetest.pos_to_string(maxp_a),
+			"minp_b:"..minetest.pos_to_string(minp_b),
+			"maxp_b:"..minetest.pos_to_string(maxp_b),
+			"=>"..minetest.pos_to_string(overlap_pos))
+	return overlap_pos
+end
+
+--------------------------------------
+-- Get a nodes list for a world chunk
+--------------------------------------
+function plan_class:get_chunk_nodes(plan_pos, anchor_pos)
+-- calculate the begin of the chunk
+	--local BLOCKSIZE = core.MAP_BLOCKSIZE
+	local BLOCKSIZE = 16
+	local wpos = self:get_world_pos(plan_pos, anchor_pos)
+	local minp = {}
+	minp.x = (math.floor(wpos.x/BLOCKSIZE))*BLOCKSIZE
+	minp.y = (math.floor(wpos.y/BLOCKSIZE))*BLOCKSIZE
+	minp.z = (math.floor(wpos.z/BLOCKSIZE))*BLOCKSIZE
+	local maxp = vector.add(minp, 16)
+
+	dprint("nodes for chunk (real-pos)", minetest.pos_to_string(minp), minetest.pos_to_string(maxp))
+
+	local minv = self:get_plan_pos(minp)
+	local maxv = self:get_plan_pos(maxp)
+	dprint("nodes for chunk (plan-pos)", minetest.pos_to_string(minv), minetest.pos_to_string(maxv))
+
+	local ret = {}
+	for y = minv.y, maxv.y do
+		if self.scm_data_cache[y] then
+			for x = minv.x, maxv.x do
+				if self.scm_data_cache[y][x] then
+					for z = minv.z, maxv.z do
+						if self.scm_data_cache[y][x][z] then
+							table.insert(ret, self:get_node({x=x, y=y,z=z}))
+						end
+					end
+				end
+			end
+		end
+	end
+	dprint("nodes in chunk to build", #ret)
+	return ret, minp, maxp -- minp/maxp are worldpos
+end
+
+--------------------------------------
+-- Add/build a chunk
 --------------------------------------
 function plan_class:do_add_chunk_place(plan_pos)
 	dprint("---build chunk", minetest.pos_to_string(plan_pos))
@@ -617,7 +657,7 @@ function plan_class:do_add_chunk_place(plan_pos)
 end
 
 --------------------------------------
---	Load a region to the voxel
+-- Load a region to the voxel
 --------------------------------------
 function plan_class:load_region(min_world_pos, max_world_pos)
 	if not max_world_pos then
@@ -631,7 +671,7 @@ function plan_class:load_region(min_world_pos, max_world_pos)
 end
 
 --------------------------------------
--- add/build a chunk using VoxelArea (internal usage)
+-- Add/build a chunk using VoxelArea (internal usage)
 --------------------------------------
 function plan_class:do_add_chunk_voxel_int()
 	local meta_fix = {}
@@ -684,6 +724,9 @@ function plan_class:do_add_chunk_voxel_int()
 	end
 end
 
+--------------------------------------
+-- Local function for emergeblocks callback
+--------------------------------------
 local function emergeblocks_callback(pos, action, num_calls_remaining, ctx)
 	if not ctx.total_blocks then
 		ctx.total_blocks   = num_calls_remaining + 1
@@ -703,7 +746,7 @@ local function emergeblocks_callback(pos, action, num_calls_remaining, ctx)
 end
 
 --------------------------------------
--- add/build a chunk using VoxelArea
+-- Add/build a chunk using VoxelArea
 --------------------------------------
 function plan_class:do_add_chunk_voxel(plan_pos, after_call_func)
 	-- Register for on_generate build
@@ -720,7 +763,7 @@ function plan_class:do_add_chunk_voxel(plan_pos, after_call_func)
 end
 
 --------------------------------------
--- add/build a chunk using VoxelArea called from mapgen
+-- Add/build a chunk using VoxelArea called from mapgen
 --------------------------------------
 function plan_class:do_add_chunk_mapgen()
 	plan._vm, plan._vm_minp, plan._vm_maxp = minetest.get_mapgen_object("voxelmanip")
@@ -757,7 +800,7 @@ function plan_class:do_add_all_voxel_async()
 end
 
 --------------------------------------
----add/build a chunk using VoxelArea
+-- Add/build a chunk using VoxelArea
 --------------------------------------
 function plan_class:do_add_all_mapgen_async()
 	-- Register for on_generate build
@@ -781,33 +824,30 @@ function plan_class:do_add_all_mapgen_async()
 end
 
 --------------------------------------
---- Get the building status. (new, build, pause, finished)
+-- Get the building status. (new, build, pause, finished)
 --------------------------------------
 function plan_class:get_status()
-	if self.status == "build" then
+	if self.data.status == "build" then
 		if self.data.nodecount == 0 then
 			dprint("finished by nodecount 0 in get_status")
-			self.status = "finished"
+			self.data.status = "finished"
 		end
 	end
-	if self.on_status then -- trigger updates trough this hook
-		self:on_status(self.status)
-	end
-	return self.status
+	return self.data.status
 end
 
 --------------------------------------
---- Set the building status. (new, build, pause, finished)
+-- Set the building status. (new, build, pause, finished)
 --------------------------------------
 function plan_class:set_status(status)
-	self.status = status
-	if self.on_status then -- trigger updates trough this hook
-		self:on_status(self.status)
+	self.data.status = status
+	if status == "build" then
+		minetest.after(0.1, self.do_add_all_voxel_async, self)
 	end
 end
 
 --------------------------------------
----Process registered on generated chunks
+-- Process registered on generated chunks
 --------------------------------------
 minetest.register_on_generated(function(minp, maxp, blockseed)
 	local pos_hash = minetest.hash_node_position(minp)

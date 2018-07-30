@@ -4,15 +4,14 @@ local mapping = schemlib.mapping
 --	Node class
 --------------------------------------
 local node_class = {}
-node_class.__index = node_class
+local node_class_mt = {__index = node_class}
 local node = {}
 node.node_class = node_class
 -------------------------------------
 --	Create new node
 --------------------------------------
 function node.new(data)
-	local self = setmetatable({}, node_class)
-	self.__index = node_class
+	local self = setmetatable({}, node_class_mt)
 
 	self.name = data.name
 	assert(self.name, "No name given for node object")
@@ -53,7 +52,7 @@ function node_class:rotate_facedir(facedir)
 	if mapped.node_def.paramtype2 == "wallmounted" then
 		local param2_dir = mapped.param2 % 8
 		local param2_color = mapped.param2 - param2_dir
-		if self.plan.mirrored then
+		if self.plan.data.mirrored then
 			param2_dir = node.rotation_wallmounted_mirrored_map[param2_dir]
 		end
 		mapped.param2 = node.rotation_wallmounted_map[facedir][param2_dir] + param2_color
@@ -61,14 +60,13 @@ function node_class:rotate_facedir(facedir)
 		-- rotate facedir
 		local param2_dir = mapped.param2 % 32
 		local param2_color = mapped.param2 - param2_dir
-		if self.plan.mirrored then
+		if self.plan.data.mirrored then
 			param2_dir =  node.rotation_facedir_mirrored_map[param2_dir]
 		end
 		mapped.param2 = node.rotation_facedir_map[facedir][param2_dir] + param2_color
 	end
-
-
 end
+
 
 -------------------------------------
 --	Get all information to build the node
@@ -77,21 +75,20 @@ function node_class:get_mapped()
 	if self.mapped == 'unknown' then
 		return
 	end
-
-	local mappedinfo = self.nodeinfo.mapped
+	local mappedinfo = self.plan.mapping_cache[self.name]
 	if not mappedinfo then
 		mappedinfo = mapping.map(self.name, self.plan)
-		self.nodeinfo.mapped = mappedinfo
+		self.plan.mapping_cache[self.name] = mappedinfo
 		self.mapped = nil
 	end
 
 	if not mappedinfo or mappedinfo == 'unknown' then
-		self.nodeinfo.mapped = 'unknown'
+		self.plan.mapping_cache[self.name] = 'unknown'
 		self.mapped = 'unknown'
 		return
 	end
 
-	if self.mapped and self.mapped.name == mappedinfo.name_orig then
+	if self.mapped then
 		return self.mapped
 	end
 
@@ -110,7 +107,7 @@ function node_class:get_mapped()
 	self.mapped = mapped
 	self.cost_item = mapped.cost_item -- workaround / backwards compatibility to npcf_builder
 
-	self:rotate_facedir(self.plan.facedir)
+	self:rotate_facedir(self.plan.data.facedir)
 	return mapped
 end
 
@@ -120,6 +117,13 @@ end
 --------------------------------------
 function node_class:get_under()
 	return self.plan:get_node({x=self._plan_pos.x, y=self._plan_pos.y-1, z=self._plan_pos.z})
+end
+
+--------------------------------------
+-- get node above this one if exists
+--------------------------------------
+function node_class:get_above()
+	return self.plan:get_node({x=self._plan_pos.x, y=self._plan_pos.y+1, z=self._plan_pos.z})
 end
 
 --------------------------------------
@@ -142,14 +146,6 @@ function node_class:get_attached_to()
 		return vector.add(self._plan_pos, dir)
 	end
 end
-
---------------------------------------
--- get node above this one if exists
---------------------------------------
-function node_class:get_above()
-	return self.plan:get_node({x=self._plan_pos.x, y=self._plan_pos.y+1, z=self._plan_pos.z})
-end
-
 
 --------------------------------------
 -- add/build a node

@@ -136,7 +136,7 @@ local default_replacements = {
 -----------------------------------------------
 -- Handle doors mirroring (_a vs _b)
 -----------------------------------------------
-function __mirror_doors(mr)
+local function __mirror_doors(mr)
 	if not mr.node_def.door then
 		return
 	end
@@ -242,7 +242,7 @@ function mapping.map(name, plan)
 	local node_def = minetest.registered_nodes[mr.name]
 	mr.node_def = node_def
 
-	if plan and plan.mirrored then
+	if plan and plan.data.mirrored then
 		__mirror_doors(mr)
 	end
 
@@ -310,6 +310,7 @@ minetest.after(0, function()
 			mapping._airlike_contend_ids[minetest.get_content_id(name)] = name
 		end
 	end
+	mapping._protected_content_ids[minetest.get_content_id("default:ice")] = nil --allow ice removal
 
 	mapping._over_surface_content_ids[minetest.get_content_id("air")] = "air"
 	mapping._over_surface_content_ids[minetest.get_content_id("default:snow")] = "default:snow"
