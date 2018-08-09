@@ -511,6 +511,9 @@ end
 -- Get world minimum position relative to plan position
 --------------------------------------
 function plan_class:get_world_minp(anchor_pos)
+	if not self.data.min_pos.x or not self.data.max_pos.x then
+		return
+	end
 	local pos = self:get_world_pos(self.data.min_pos, anchor_pos)
 	local pos2 = self:get_world_pos(self.data.max_pos, anchor_pos)
 	if pos2.x < pos.x then
@@ -529,6 +532,9 @@ end
 -- Get world maximum relative to plan position
 --------------------------------------
 function plan_class:get_world_maxp(anchor_pos)
+	if not self.data.min_pos.x or not self.data.max_pos.x then
+		return
+	end
 	local pos = self:get_world_pos(self.data.max_pos, anchor_pos)
 	local pos2 = self:get_world_pos(self.data.min_pos, anchor_pos)
 	if pos2.x > pos.x then
