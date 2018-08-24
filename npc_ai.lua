@@ -43,14 +43,11 @@ function npc_ai_class:get_if_buildable(node)
 
 	-- get the original node from loaded area. Load a chunk if not given
 	local world_pos = node:get_world_pos()
-	local node_index
-	local world_content_id
-
 	if not self.plan.vm_area or not self.plan.vm_area:contains(world_pos.x, world_pos.y, world_pos.z) then
 		self.plan:load_region(world_pos)
 	end
-	node_index = self.plan.vm_area:indexp(world_pos)
-	world_content_id = self.plan.vm_data[node_index]
+	local node_index = self.plan.vm_area:indexp(world_pos)
+	local world_content_id = self.plan.vm_data[node_index]
 	node.world_node_name = minetest.get_name_from_content_id(world_content_id)
 
 	-- place attached nodes after the node under
@@ -93,7 +90,7 @@ end
 function npc_ai_class:get_node_rating(node, npcpos)
 	local world_pos = node:get_world_pos()
 	local mapped = node:get_mapped()
-	local distance_pos = table.copy(world_pos)
+	local distance_pos = { x = world_pos.x, y = world_pos.y, z = world_pos.z}
 	local prefer = 0
 
 	-- build water at the later time
