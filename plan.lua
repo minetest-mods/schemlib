@@ -512,7 +512,8 @@ end
 --------------------------------------
 function plan_class:get_world_minp(anchor_pos)
 	if not self.data.min_pos.x or not self.data.max_pos.x then
-		return
+		local apos = anchor_pos or self.data.anchor_pos
+		return { x=apos.x, y=apos.y, z=apos.z }
 	end
 	local pos = self:get_world_pos(self.data.min_pos, anchor_pos)
 	local pos2 = self:get_world_pos(self.data.max_pos, anchor_pos)
@@ -533,7 +534,8 @@ end
 --------------------------------------
 function plan_class:get_world_maxp(anchor_pos)
 	if not self.data.min_pos.x or not self.data.max_pos.x then
-		return
+		local apos = anchor_pos or self.data.anchor_pos
+		return { x=apos.x, y=apos.y, z=apos.z }
 	end
 	local pos = self:get_world_pos(self.data.max_pos, anchor_pos)
 	local pos2 = self:get_world_pos(self.data.min_pos, anchor_pos)
