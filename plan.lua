@@ -220,14 +220,18 @@ function plan_class:read_from_schem_file(filename)
 	if string.find(filename, '.mts',  -4) then
 		local str = minetest.serialize_schematic(filename, "lua", {})
 		if not str then
-			dprint("error: could not open file \"" .. filename .. "\"")
+			minetest.log("schemlib error: could not open file \"" .. filename .. "\"")
 			return
 		end
-		local schematic = loadstring(str.." return(schematic)")()
+		local schematic, err = minetest.deserialize(str.." return(schematic)")
 			--[[	schematic.yslice_prob = {{ypos = 0,prob = 254},..}
 					schematic.size = { y = 18,x = 10, z = 18},
 					schematic.data = {{param2 = 2,name = "default:tree",prob = 254},..}
 				]]
+		if not schematic then
+			minetest.log("schemlib error: MTS file could not be read (maybe to big?) \"" .. filename .. "\"")
+			return
+		end
 
 		-- analyze the file
 		for i, ent in ipairs( schematic.data ) do
