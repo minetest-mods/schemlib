@@ -216,14 +216,23 @@ end
 -- Generate a plan from schematics file
 --------------------------------------
 function plan_class:read_from_schem_file(filename)
-	local file = io.open( filename, 'r' )
+
+	local mts_format = string.find(filename, '.mts',  -4)
+
+	local readingMode = 'r'
+	if mts_format then 
+		-- Minetest Schematics are a packed binary file format
+		readingMode = 'rb'
+	end
+
+	local file = io.open( filename, readingMode )
 	if not file then
 		dprint("error: could not open file \"" .. filename .. "\"")
 		return
 	end
 
 	-- Minetest Schematics
-	if string.find(filename, '.mts',  -4) then
+	if mts_format then
 		-- thanks to sfan5 for this advanced code that reads the size from schematic files
 		local function read_s16(fi)
 			return string.byte(fi:read(1)) * 256 + string.byte(fi:read(1))
