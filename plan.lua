@@ -215,7 +215,8 @@ end
 --------------------------------------
 -- Generate a plan from schematics file
 --------------------------------------
-function plan_class:read_from_schem_file(filename)
+-- replacements parameter is optional, and only used by .mts files.
+function plan_class:read_from_schem_file(filename, replacements)
 
 	local mts_format = string.find(filename, '.mts',  -4)
 
@@ -261,6 +262,7 @@ function plan_class:read_from_schem_file(filename)
 		for i = 1, node_name_count do
 			local name_length = read_s16(file)
 			local name_text   = file:read(name_length)
+			if replacements ~= nil and replacements[name_text] ~= nil then name_text = replacements[name_text] end
 			table.insert(node_names, name_text)
 			if name_text == "air" then
 				air_id = i
