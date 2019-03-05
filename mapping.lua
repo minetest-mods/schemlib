@@ -159,7 +159,7 @@ end
 -----------------------------------------------
 -- merge entry
 -----------------------------------------------
-local function merge_map_entry(entry1, entry2)
+function mapping.merge_map_entry(entry1, entry2)
 	if entry2 then
 		local ret_entry = table.copy(entry2)
 		for k,v in pairs(entry1) do
@@ -212,7 +212,7 @@ function mapping.map_unknown(name)
 		return unknown_nodes_data["fallback"]
 	end
 	dprint("mapped", name, "to", map.name)
-	return merge_map_entry(map)
+	return mapping.merge_map_entry(map)
 end
 
 -----------------------------------------------
@@ -225,13 +225,13 @@ function mapping.map(name, plan)
 
 	--do fallback mapping if not registred node
 	if not node_chk then
-		mr = merge_map_entry(mapping.map_unknown(name), mr)
+		mr = mapping.merge_map_entry(mapping.map_unknown(name), mr)
 	end
 
 	-- get default replacement
 	local map = default_replacements[name]
 	if map then
-		mr = merge_map_entry(map, mr)
+		mr = mapping.merge_map_entry(map, mr)
 	end
 
 	--disabled by mapping
