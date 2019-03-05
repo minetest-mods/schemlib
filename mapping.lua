@@ -253,34 +253,48 @@ function mapping.map(name, plan)
 		__mirror_doors(mr)
 	end
 
-	-- determine cost_item
-	if not mr.cost_item then
-		--Check for price or if it is free
-		local recipe = minetest.get_craft_recipe(mr.name)
-		if (node_def.groups.not_in_creative_inventory and --not in creative
-				not (node_def.groups.not_in_creative_inventory == 0) and
-				(not recipe or not recipe.items)) --and not craftable
-				or (not node_def.description or node_def.description == "") then -- no description
-			-- node cannot be used as payment. Check for drops
-			local dropstack = minetest.get_node_drops(mr.name)
-			if dropstack then
-				mr.cost_item = dropstack[1] -- use the first one
-			else --something not supported, but known
-				mr.cost_item = mapping.c_free_item -- will be build for free. they are something like doors:hidden or second part of coffee lrfurn:coffeetable_back
-			end
-		else -- build for payment the 1:1
-			mr.cost_item = mr.name
-		end
-	end
-
-	if not mr.cost_item or mr.cost_item == "" then
-		mr.cost_item = mapping.c_free_item
-	end
-
-	dprint("map", name, "to", mr.name, mr.param2, mr.cost_item)
+	dprint("map", name, "to", mr.name, mr.param2)
 	return mr
 end
 
+
+function mapping.get_cost_item(node_name, plan)
+	if plan then
+		local mapped = mapping.map(node_name, plan)
+		node_name = mapped.name or node_name
+	end
+
+	local cost_item
+	local node_def = minetest.registered_items[node_name]
+	if not node_def then
+		return
+	end
+
+	-- Check if the node can be used byself
+	if not node_def.description or node_def.description == "" then
+		-- node is invalid item
+	elseif node_def.groups.not_in_creative_inventory == 1 then
+		local recipe = minetest.get_craft_recipe(node_name)
+		if recipe and recipe.items then
+			-- node is crafteable, can be provided as cost item
+			cost_item = node_name
+		end
+	end
+
+	if not cost_item then
+		-- node cannot be used as cost item. Check for drops
+		local dropstack = minetest.get_node_drops(node_name)
+		if dropstack and dropstack[1] and dropstack[1] ~= "" then
+			cost_item = dropstack[1] -- use the first one
+		else
+			--something not supported, but known.
+			-- will be build for free. they are something like doors:hidden or second part of coffee lrfurn:coffeetable_back
+			cost_item = mapping.c_free_item
+		end
+	end
+	dprint("cost_item", cost_item, "for", node_name)
+	return cost_item
+end
 
 ------------------------------------------
 -- Cache some node content ID
