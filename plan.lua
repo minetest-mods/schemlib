@@ -35,6 +35,7 @@ function plan.new(plan_id , anchor_pos)
 			max_pos = {},
 			groundnode_count = 0,
 			nodeinfos = {},
+			replacements = {},
 			nodecount = 0,
 			ground_y = -1, --if nothing defined, it is under the building
 
@@ -262,7 +263,9 @@ function plan_class:read_from_schem_file(filename, replacements)
 		for i = 1, node_name_count do
 			local name_length = read_s16(file)
 			local name_text   = file:read(name_length)
-			if replacements ~= nil and replacements[name_text] ~= nil then name_text = replacements[name_text] end
+			if replacements and replacements[name_text] then
+				name_text = replacements[name_text]
+			end
 			table.insert(node_names, name_text)
 			if name_text == "air" then
 				air_id = i
@@ -296,6 +299,9 @@ function plan_class:read_from_schem_file(filename, replacements)
 		-- analyze the file
 		for i, ent in ipairs( nodes ) do
 			local pos = {x=ent.x, y=ent.y, z=ent.z}
+			if replacements and replacements[ent.name] then
+				ent.name = replacements[ent.name]
+			end
 			self:add_node(pos, ent)
 			self:adjust_building_info(pos, ent)
 		end
@@ -337,6 +343,13 @@ function plan_class:apply_flood_with_air(add_max, add_min, add_top)
 		end
 	end
 	dprint("flatting plan done")
+end
+
+-----------------------------------
+-- Add a node replacement mapping
+-----------------------------------
+function plan_class:set_replacement(node_name, mapping_def)
+	self.data.replacements[node_name] = mapping_def
 end
 
 --------------------------------------

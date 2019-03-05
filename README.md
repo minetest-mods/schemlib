@@ -30,6 +30,8 @@ an anchor to the "real world". In this stage no world interactions are possible.
 The second stage is after the plan get the anchor attribute set.
 In this stage the world interaction methods like place node are possible.
 
+Once drafting is complete and the anchor position is set, a plan can be placed in the world by invoking `plan_obj:set_status("build")`
+
 ### class-methods
   - plan_obj = schemlib.plan.new([plan_id][,anchor_pos])    - Constructor - create a new plan object
 
@@ -47,7 +49,15 @@ In this stage the world interaction methods like place node are possible.
   - plan_obj:get_node(plan_pos)             - get a node from plan
   - plan_obj:del_node(plan_pos)             - delete a node from plan
   - plan_obj:get_random_plan_pos()          - get a random existing plan_pos from plan
-  - plan_obj:read_from_schem_file(file)     - read from WorldEdit or mts file
+  - plan_obj:read_from_schem_file(file[,replacments])    - read from WorldEdit or mts file
+    - replacments = `{["old_name"] = "convert_to", ...}` - optional. Simple replacements of node names on load
+  - plan_obj:set_replacement(node_name, mapping_def ) - add/set a node replacement mapping. for specific node name. All parameter inside the mapping definition are optional. Next parameters are supported.
+    - mapping_def.name = "new_name"    - Replace the node name by other node name
+    - mapping_def.param2 = ?           - Set fixed param2 for all nodes of this type
+    - mapping_def.prob = ?             - Set probability to fixed value (not used at the time)
+    - mapping_def.meta = {fields = {}} - Set metadata for all nodes of this type
+    - mapping_def.cost_item            - Override the cost_item determination by own item.
+    - mapping_def.custom_function = function(mappedinfo, node_obj) - Custom function called for each node (for each node_obj). See mapping.lua for examples and reuseables
   - plan_obj:apply_flood_with_air
        (add_max, add_min, add_top) - Fill a building with air
   - plan_obj:propose_anchor(world_pos, bool, add_xz)
@@ -86,6 +96,7 @@ In this stage the world interaction methods like place node are possible.
   - plan_obj.data.groundnode_count - count of nodes found for ground_y determination (internal)
   - plan_obj.data.nodecount      - count of the nodes in plan
   - plan_obj.data.nodeinfos      - a list of node information for name_id with counter (list={pos_hash,...}, count=1})
+  - plan_obj.data.replacements   - Replacements and node mappings table. See function set_replacement() for details
   - plan_obj.data.ground_y       - explicit ground adjustment for anchor_pos
   - plan_obj.data.facedir        - Plan rotation - x+ axis supported only (values 0-3)
   - plan_obj.data.mirrored       - (bool) Mirrored build - mirror to z-axis. Note: if you need x-axis mirror - just rotate the building by 2 in addition
@@ -122,10 +133,10 @@ A node is usually assigned to a plan, the most methods require the plan assignme
   - node_obj.nodeinfo     - assigned nodeinfo in plan
 
 Node mapping functions
-  - schemlib.mapping.is_equal_meta(data,data) - Recursivelly compare data. Primary developed to check node metadata for changes
-  - schemlib.mapping.map_unknown(item_name)   - Internally used to map unknown nodes
-  - schemlib.mapping.map(name, plan)          - Get mapping informations without any callback calls
-
+  - schemlib.mapping.is_equal_meta(data,data)       - Recursivelly compare data. Primary developed to check node metadata for changes
+  - schemlib.mapping.map_unknown(item_name)         - Internally used to map unknown nodes
+  - schemlib.mapping.map(node_name, plan)           - Get mapping informations without any callback calls
+  - schemlib.mapping.get_cost_item(node_name, plan) - Get cost item for specific node
 
 ## Plan Manager object
 The plan manager does manage the persistance for WIP plans. Also the manager allow to check overlaps to other buildings.

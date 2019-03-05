@@ -10,7 +10,7 @@ mapping.c_free_item = "default:cloud"
 -----------------------------------------------
 -- door compatibility. Seems the old doors was facedir and now the wallmounted values should be used (custom_function)
 -----------------------------------------------
-local function __param2_wallmounted_to_facedir(mapped, node)
+function mapping.param2_wallmounted_to_facedir(mapped, node)
 	if mapped.param2 == 0 then     -- +y?
 		mapped.param2 = 0
 	elseif mapped.param2 == 1 then -- -y?
@@ -29,7 +29,7 @@ end
 -----------------------------------------------
 -- Torches compatibility (custom_function)
 -----------------------------------------------
-local function __torches_compat(mapped, node)
+function mapping.torches_compat(mapped, node)
 -- from default:3dtorch-lbm
 	if mapped.param2 == 0 then
 		mapped.name = "default:torch_ceiling"
@@ -40,7 +40,7 @@ local function __torches_compat(mapped, node)
 	end
 end
 
-local function __remove_formspec(mapped, node)
+function mapping.remove_formspec(mapped, node)
 	-- Chest does use on_rightclick / show_formspec now
 	if mapped.meta and mapped.meta.fields then
 		mapped.meta.fields.formspec = nil
@@ -63,8 +63,8 @@ local unknown_nodes_data = {
 
 	["ethereal:green_dirt"] = { name = "default:dirt_with_grass" },
 
-	["doors:door_wood_b_c"] = {name = "doors:door_wood_a", meta = {fields = {state = 1}}, custom_function = __param2_wallmounted_to_facedir }, --closed
-	["doors:door_wood_b_o"] = {name = "doors:door_wood_b", meta = {fields = {state = 3}}, custom_function = __param2_wallmounted_to_facedir }, --open
+	["doors:door_wood_b_c"] = {name = "doors:door_wood_a", meta = {fields = {state = 1}}, custom_function = mapping.param2_wallmounted_to_facedir }, --closed
+	["doors:door_wood_b_o"] = {name = "doors:door_wood_b", meta = {fields = {state = 3}}, custom_function = mapping.param2_wallmounted_to_facedir }, --open
 	["doors:door_wood_b_1"] = {name = "doors:door_wood_a", meta = {fields = {state = 0}}}, --Left door closed
 	["doors:door_wood_b_2"] = {name = "doors:door_wood_b", meta = {fields = {state = 2}}}, --right door closed
 	["doors:door_wood_a_c"] = {name = "doors:hidden" },
@@ -72,8 +72,8 @@ local unknown_nodes_data = {
 	["doors:door_wood_t_1"] = {name = "doors:hidden" },
 	["doors:door_wood_t_2"] = {name = "doors:hidden" },
 
-	["doors:door_glass_b_c"] = {name = "doors:door_glass_a", meta = {fields = {state = 1}}, custom_function = __param2_wallmounted_to_facedir }, --closed
-	["doors:door_glass_b_o"] = {name = "doors:door_glass_b", meta = {fields = {state = 3}}, custom_function = __param2_wallmounted_to_facedir }, --open
+	["doors:door_glass_b_c"] = {name = "doors:door_glass_a", meta = {fields = {state = 1}}, custom_function = mapping.param2_wallmounted_to_facedir }, --closed
+	["doors:door_glass_b_o"] = {name = "doors:door_glass_b", meta = {fields = {state = 3}}, custom_function = mapping.param2_wallmounted_to_facedir }, --open
 	["doors:door_glass_b_1"] = {name = "doors:door_glass_a", meta = {fields = {state = 0}}}, --Left door closed
 	["doors:door_glass_b_2"] = {name = "doors:door_glass_b", meta = {fields = {state = 2}}}, --right door closed
 	["doors:door_glass_a_c"] = {name = "doors:hidden" },
@@ -81,8 +81,8 @@ local unknown_nodes_data = {
 	["doors:door_glass_t_1"] = {name = "doors:hidden" },
 	["doors:door_glass_t_2"] = {name = "doors:hidden" },
 
-	["doors:door_steel_b_c"] = {name = "doors:door_steel_a", meta = {fields = {state = 1}}, custom_function = __param2_wallmounted_to_facedir }, --closed
-	["doors:door_steel_b_o"] = {name = "doors:door_steel_b", meta = {fields = {state = 3}}, custom_function = __param2_wallmounted_to_facedir }, --open
+	["doors:door_steel_b_c"] = {name = "doors:door_steel_a", meta = {fields = {state = 1}}, custom_function = mapping.param2_wallmounted_to_facedir }, --closed
+	["doors:door_steel_b_o"] = {name = "doors:door_steel_b", meta = {fields = {state = 3}}, custom_function = mapping.param2_wallmounted_to_facedir }, --open
 	["doors:door_steel_b_1"] = {name = "doors:door_steel_a", meta = {fields = {state = 0}}}, --Left door closed
 	["doors:door_steel_b_2"] = {name = "doors:door_steel_b", meta = {fields = {state = 2}}}, --right door closed
 	["doors:door_steel_a_c"] = {name = "doors:hidden" },
@@ -124,12 +124,12 @@ local default_replacements = {
 	["xpanes:pane_5"]               = { name = "xpanes:pane_flat", param2 = 0 }, --unsure
 	["xpanes:pane_10"]              = { name = "xpanes:pane_flat", param2 = 1 }, --unsure
 
-	["default:torch"]               = { custom_function = __torches_compat },
+	["default:torch"]               = { custom_function = mapping.torches_compat },
 	["torches:wall"]                = { name = "default:torch_wall" },
 
 	-- Chest does use on_rightclick / show_formspec now
-	["default:chest"]        = {custom_function = __remove_formspec },
-	["default:chest_locked"] = {custom_function = __remove_formspec },
+	["default:chest"]        = {custom_function = mapping.remove_formspec },
+	["default:chest_locked"] = {custom_function = mapping.remove_formspec },
 
 }
 
@@ -159,7 +159,7 @@ end
 -----------------------------------------------
 -- merge entry
 -----------------------------------------------
-local function merge_map_entry(entry1, entry2)
+function mapping.merge_map_entry(entry1, entry2)
 	if entry2 then
 		local ret_entry = table.copy(entry2)
 		for k,v in pairs(entry1) do
@@ -212,7 +212,7 @@ function mapping.map_unknown(name)
 		return unknown_nodes_data["fallback"]
 	end
 	dprint("mapped", name, "to", map.name)
-	return merge_map_entry(map)
+	return mapping.merge_map_entry(map)
 end
 
 -----------------------------------------------
@@ -225,13 +225,20 @@ function mapping.map(name, plan)
 
 	--do fallback mapping if not registred node
 	if not node_chk then
-		mr = merge_map_entry(mapping.map_unknown(name), mr)
+		mr = mapping.merge_map_entry(mapping.map_unknown(name), mr)
 	end
 
 	-- get default replacement
 	local map = default_replacements[name]
 	if map then
-		mr = merge_map_entry(map, mr)
+		mr = mapping.merge_map_entry(map, mr)
+	end
+
+	if plan then
+		local plan_map = plan.data.replacements[name]
+		if plan_map then
+			mr = mapping.merge_map_entry(plan_map, mr)
+		end
 	end
 
 	--disabled by mapping
@@ -246,34 +253,47 @@ function mapping.map(name, plan)
 		__mirror_doors(mr)
 	end
 
-	-- determine cost_item
-	if not mr.cost_item then
-		--Check for price or if it is free
-		local recipe = minetest.get_craft_recipe(mr.name)
-		if (node_def.groups.not_in_creative_inventory and --not in creative
-				not (node_def.groups.not_in_creative_inventory == 0) and
-				(not recipe or not recipe.items)) --and not craftable
-				or (not node_def.description or node_def.description == "") then -- no description
-			-- node cannot be used as payment. Check for drops
-			local dropstack = minetest.get_node_drops(mr.name)
-			if dropstack then
-				mr.cost_item = dropstack[1] -- use the first one
-			else --something not supported, but known
-				mr.cost_item = mapping.c_free_item -- will be build for free. they are something like doors:hidden or second part of coffee lrfurn:coffeetable_back
-			end
-		else -- build for payment the 1:1
-			mr.cost_item = mr.name
-		end
-	end
-
-	if not mr.cost_item or mr.cost_item == "" then
-		mr.cost_item = mapping.c_free_item
-	end
-
-	dprint("map", name, "to", mr.name, mr.param2, mr.cost_item)
+	dprint("map", name, "to", mr.name, mr.param2)
 	return mr
 end
 
+
+function mapping.get_cost_item(node_name, plan)
+
+	local mapped = mapping.map(node_name, plan)
+	node_name = mapped.name or node_name
+
+	local cost_item
+	local node_def = minetest.registered_items[node_name]
+	if not node_def then
+		return
+	end
+
+	-- Check if the node can be used byself
+	if not node_def.description or node_def.description == "" then
+		-- node is invalid item
+	elseif node_def.groups.not_in_creative_inventory == 1 then
+		local recipe = minetest.get_craft_recipe(node_name)
+		if recipe and recipe.items then
+			-- node is crafteable, can be provided as cost item
+			cost_item = node_name
+		end
+	end
+
+	if not cost_item then
+		-- node cannot be used as cost item. Check for drops
+		local dropstack = minetest.get_node_drops(node_name)
+		if dropstack and dropstack[1] and dropstack[1] ~= "" then
+			cost_item = dropstack[1] -- use the first one
+		else
+			--something not supported, but known.
+			-- will be build for free. they are something like doors:hidden or second part of coffee lrfurn:coffeetable_back
+			cost_item = mapping.c_free_item
+		end
+	end
+	dprint("cost_item", cost_item, "for", node_name)
+	return cost_item
+end
 
 ------------------------------------------
 -- Cache some node content ID
