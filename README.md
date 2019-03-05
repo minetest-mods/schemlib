@@ -51,7 +51,7 @@ Once drafting is complete and the anchor position is set, a plan can be placed i
   - plan_obj:get_random_plan_pos()          - get a random existing plan_pos from plan
   - plan_obj:read_from_schem_file(file[,replacments])    - read from WorldEdit or mts file
     - replacments = `{["old_name"] = "convert_to", ...}` - optional, and only used by mts files.
-  - plan_obj:get_replacement(node_name)     - get a map entry table specifying the name, node_def, and optional extra fields that node_name will be replaced with. Returns nil if the plan has no replacement mapping for node_name.
+  - plan_obj:get_replacement(node_name)     - get a map entry table specifying the name, node_def, and any optional extra fields that nodes of type node_name will be replaced with. Returns nil if the plan_obj has no replacement mapping for node_name.
   - plan_obj:set_replacement(from_node_name, to[,param2][,meta][,prob][,custom_function]) - add a node replacement mapping. Only the 'from_node_name' and 'to' arguments are required. 'to' can be either a node name, or a map entry table.
   - plan_obj:apply_flood_with_air
        (add_max, add_min, add_top) - Fill a building with air

@@ -352,7 +352,7 @@ end
 -- Add a node replacement mapping
 -----------------------------------
 -- Only the 'from_node_name' and 'to' arguments are required.
--- The 'to' paramater can be either a node name, or a map entry table, like the map entries returned by get_replacement()
+-- The 'to' paramater can be passed either a node name, or a map entry table, like the map entries returned by get_replacement()
 function plan_class:set_replacement(from_node_name, to, param2, meta, prob, custom_function)
 
 	local new_mapping
@@ -361,13 +361,15 @@ function plan_class:set_replacement(from_node_name, to, param2, meta, prob, cust
 		new_mapping = to
 	else
 		new_mapping = { 
+			-- required fields:
 			name     = to,
-			node_def = minetest.registered_nodes[to]
+			node_def = minetest.registered_nodes[to],
+			-- optional fields:
+			param2          = param2,
+			meta            = meta,
+			prob            = prob,
+			custom_function = custom_function
 		}
-		if param2          ~= nil then new_mapping.param2          = param2          end
-		if meta            ~= nil then new_mapping.meta            = meta            end
-		if prob            ~= nil then new_mapping.prob            = prob            end
-		if custom_function ~= nil then new_mapping.custom_function = custom_function end
 	end
 
 	existing_mapping = self:get_replacement(from_node_name)
