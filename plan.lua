@@ -35,6 +35,7 @@ function plan.new(plan_id , anchor_pos)
 			max_pos = {},
 			groundnode_count = 0,
 			nodeinfos = {},
+			replacements = {},
 			nodecount = 0,
 			ground_y = -1, --if nothing defined, it is under the building
 
@@ -339,41 +340,11 @@ function plan_class:apply_flood_with_air(add_max, add_min, add_top)
 	dprint("flatting plan done")
 end
 
------------------------------------------------------
--- Get an existing node-replacement mapping, or nil 
------------------------------------------------------
--- Returns a map entry table which contains name, node_def, and optional extra fields.
--- Returns nil if the plan had no mapping for the given node_name
-function plan_class:get_replacement(node_name)
-	return self.mapping_cache[node_name]
-end
-
 -----------------------------------
 -- Add a node replacement mapping
 -----------------------------------
--- Only the 'from_node_name' and 'to' arguments are required.
--- The 'to' paramater can be passed either a node name, or a map entry table, like the map entries returned by get_replacement()
-function plan_class:set_replacement(from_node_name, to, param2, meta, prob, custom_function)
-
-	local new_mapping
-
-	if type(to) == "table" then
-		new_mapping = to
-	else
-		new_mapping = { 
-			-- required fields:
-			name     = to,
-			node_def = minetest.registered_nodes[to],
-			-- optional fields:
-			param2          = param2,
-			meta            = meta,
-			prob            = prob,
-			custom_function = custom_function
-		}
-	end
-
-	existing_mapping = self:get_replacement(from_node_name)
-	self.mapping_cache[from_node_name] = schemlib.mapping.merge_map_entry(new_mapping, existing_mapping)
+function plan_class:set_replacement(node_name, mapping_def)
+	self.data.replacements[node_name] = mapping_def
 end
 
 --------------------------------------

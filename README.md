@@ -50,9 +50,14 @@ Once drafting is complete and the anchor position is set, a plan can be placed i
   - plan_obj:del_node(plan_pos)             - delete a node from plan
   - plan_obj:get_random_plan_pos()          - get a random existing plan_pos from plan
   - plan_obj:read_from_schem_file(file[,replacments])    - read from WorldEdit or mts file
-    - replacments = `{["old_name"] = "convert_to", ...}` - optional, and only used by mts files.
-  - plan_obj:get_replacement(node_name)     - get a map entry table specifying the name, node_def, and any optional extra fields that nodes of type node_name will be replaced with. Returns nil if the plan_obj has no replacement mapping for node_name.
-  - plan_obj:set_replacement(from_node_name, to[,param2][,meta][,prob][,custom_function]) - add a node replacement mapping. Only the 'from_node_name' and 'to' arguments are required. 'to' can be either a node name, or a map entry table.
+    - replacments = `{["old_name"] = "convert_to", ...}` - optional. Simple replacements of node names on load
+  - plan_obj:set_replacement(node_name, mapping_def ) - add/set a node replacement mapping. for specific node name. All parameter inside the mapping definition are optional. Next parameters are supported.
+    - mapping_def.name = "new_name"    - Replace the node name by other node name
+    - mapping_def.param2 = ?           - Set fixed param2 for all nodes of this type
+    - mapping_def.prob = ?             - Set probability to fixed value (not used at the time)
+    - mapping_def.meta = {fields = {}} - Set metadata for all nodes of this type
+    - mapping_def.cost_item            - Override the cost_item determination by own item.
+    - mapping_def.custom_function = function(mappedinfo, node_obj) - Custom function called for each node (for each node_obj). See mapping.lua for examples and reuseables
   - plan_obj:apply_flood_with_air
        (add_max, add_min, add_top) - Fill a building with air
   - plan_obj:propose_anchor(world_pos, bool, add_xz)
@@ -91,6 +96,7 @@ Once drafting is complete and the anchor position is set, a plan can be placed i
   - plan_obj.data.groundnode_count - count of nodes found for ground_y determination (internal)
   - plan_obj.data.nodecount      - count of the nodes in plan
   - plan_obj.data.nodeinfos      - a list of node information for name_id with counter (list={pos_hash,...}, count=1})
+  - plan_obj.data.replacements   - Replacements and node mappings table. See function set_replacement() for details
   - plan_obj.data.ground_y       - explicit ground adjustment for anchor_pos
   - plan_obj.data.facedir        - Plan rotation - x+ axis supported only (values 0-3)
   - plan_obj.data.mirrored       - (bool) Mirrored build - mirror to z-axis. Note: if you need x-axis mirror - just rotate the building by 2 in addition

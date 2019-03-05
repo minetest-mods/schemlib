@@ -10,7 +10,7 @@ mapping.c_free_item = "default:cloud"
 -----------------------------------------------
 -- door compatibility. Seems the old doors was facedir and now the wallmounted values should be used (custom_function)
 -----------------------------------------------
-local function __param2_wallmounted_to_facedir(mapped, node)
+function mapping.param2_wallmounted_to_facedir(mapped, node)
 	if mapped.param2 == 0 then     -- +y?
 		mapped.param2 = 0
 	elseif mapped.param2 == 1 then -- -y?
@@ -29,7 +29,7 @@ end
 -----------------------------------------------
 -- Torches compatibility (custom_function)
 -----------------------------------------------
-local function __torches_compat(mapped, node)
+function mapping.torches_compat(mapped, node)
 -- from default:3dtorch-lbm
 	if mapped.param2 == 0 then
 		mapped.name = "default:torch_ceiling"
@@ -40,7 +40,7 @@ local function __torches_compat(mapped, node)
 	end
 end
 
-local function __remove_formspec(mapped, node)
+function mapping.remove_formspec(mapped, node)
 	-- Chest does use on_rightclick / show_formspec now
 	if mapped.meta and mapped.meta.fields then
 		mapped.meta.fields.formspec = nil
@@ -63,8 +63,8 @@ local unknown_nodes_data = {
 
 	["ethereal:green_dirt"] = { name = "default:dirt_with_grass" },
 
-	["doors:door_wood_b_c"] = {name = "doors:door_wood_a", meta = {fields = {state = 1}}, custom_function = __param2_wallmounted_to_facedir }, --closed
-	["doors:door_wood_b_o"] = {name = "doors:door_wood_b", meta = {fields = {state = 3}}, custom_function = __param2_wallmounted_to_facedir }, --open
+	["doors:door_wood_b_c"] = {name = "doors:door_wood_a", meta = {fields = {state = 1}}, custom_function = mapping.param2_wallmounted_to_facedir }, --closed
+	["doors:door_wood_b_o"] = {name = "doors:door_wood_b", meta = {fields = {state = 3}}, custom_function = mapping.param2_wallmounted_to_facedir }, --open
 	["doors:door_wood_b_1"] = {name = "doors:door_wood_a", meta = {fields = {state = 0}}}, --Left door closed
 	["doors:door_wood_b_2"] = {name = "doors:door_wood_b", meta = {fields = {state = 2}}}, --right door closed
 	["doors:door_wood_a_c"] = {name = "doors:hidden" },
@@ -72,8 +72,8 @@ local unknown_nodes_data = {
 	["doors:door_wood_t_1"] = {name = "doors:hidden" },
 	["doors:door_wood_t_2"] = {name = "doors:hidden" },
 
-	["doors:door_glass_b_c"] = {name = "doors:door_glass_a", meta = {fields = {state = 1}}, custom_function = __param2_wallmounted_to_facedir }, --closed
-	["doors:door_glass_b_o"] = {name = "doors:door_glass_b", meta = {fields = {state = 3}}, custom_function = __param2_wallmounted_to_facedir }, --open
+	["doors:door_glass_b_c"] = {name = "doors:door_glass_a", meta = {fields = {state = 1}}, custom_function = mapping.param2_wallmounted_to_facedir }, --closed
+	["doors:door_glass_b_o"] = {name = "doors:door_glass_b", meta = {fields = {state = 3}}, custom_function = mapping.param2_wallmounted_to_facedir }, --open
 	["doors:door_glass_b_1"] = {name = "doors:door_glass_a", meta = {fields = {state = 0}}}, --Left door closed
 	["doors:door_glass_b_2"] = {name = "doors:door_glass_b", meta = {fields = {state = 2}}}, --right door closed
 	["doors:door_glass_a_c"] = {name = "doors:hidden" },
@@ -81,8 +81,8 @@ local unknown_nodes_data = {
 	["doors:door_glass_t_1"] = {name = "doors:hidden" },
 	["doors:door_glass_t_2"] = {name = "doors:hidden" },
 
-	["doors:door_steel_b_c"] = {name = "doors:door_steel_a", meta = {fields = {state = 1}}, custom_function = __param2_wallmounted_to_facedir }, --closed
-	["doors:door_steel_b_o"] = {name = "doors:door_steel_b", meta = {fields = {state = 3}}, custom_function = __param2_wallmounted_to_facedir }, --open
+	["doors:door_steel_b_c"] = {name = "doors:door_steel_a", meta = {fields = {state = 1}}, custom_function = mapping.param2_wallmounted_to_facedir }, --closed
+	["doors:door_steel_b_o"] = {name = "doors:door_steel_b", meta = {fields = {state = 3}}, custom_function = mapping.param2_wallmounted_to_facedir }, --open
 	["doors:door_steel_b_1"] = {name = "doors:door_steel_a", meta = {fields = {state = 0}}}, --Left door closed
 	["doors:door_steel_b_2"] = {name = "doors:door_steel_b", meta = {fields = {state = 2}}}, --right door closed
 	["doors:door_steel_a_c"] = {name = "doors:hidden" },
@@ -124,12 +124,12 @@ local default_replacements = {
 	["xpanes:pane_5"]               = { name = "xpanes:pane_flat", param2 = 0 }, --unsure
 	["xpanes:pane_10"]              = { name = "xpanes:pane_flat", param2 = 1 }, --unsure
 
-	["default:torch"]               = { custom_function = __torches_compat },
+	["default:torch"]               = { custom_function = mapping.torches_compat },
 	["torches:wall"]                = { name = "default:torch_wall" },
 
 	-- Chest does use on_rightclick / show_formspec now
-	["default:chest"]        = {custom_function = __remove_formspec },
-	["default:chest_locked"] = {custom_function = __remove_formspec },
+	["default:chest"]        = {custom_function = mapping.remove_formspec },
+	["default:chest_locked"] = {custom_function = mapping.remove_formspec },
 
 }
 
@@ -232,6 +232,13 @@ function mapping.map(name, plan)
 	local map = default_replacements[name]
 	if map then
 		mr = mapping.merge_map_entry(map, mr)
+	end
+
+	if plan then
+		local plan_map = plan.data.replacements[name]
+		if plan_map then
+			mr = mapping.merge_map_entry(plan_map, mr)
+		end
 	end
 
 	--disabled by mapping
