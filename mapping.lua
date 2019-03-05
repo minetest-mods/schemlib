@@ -259,10 +259,9 @@ end
 
 
 function mapping.get_cost_item(node_name, plan)
-	if plan then
-		local mapped = mapping.map(node_name, plan)
-		node_name = mapped.name or node_name
-	end
+
+	local mapped = mapping.map(node_name, plan)
+	node_name = mapped.name or node_name
 
 	local cost_item
 	local node_def = minetest.registered_items[node_name]

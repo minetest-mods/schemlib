@@ -133,10 +133,10 @@ A node is usually assigned to a plan, the most methods require the plan assignme
   - node_obj.nodeinfo     - assigned nodeinfo in plan
 
 Node mapping functions
-  - schemlib.mapping.is_equal_meta(data,data) - Recursivelly compare data. Primary developed to check node metadata for changes
-  - schemlib.mapping.map_unknown(item_name)   - Internally used to map unknown nodes
-  - schemlib.mapping.map(name, plan)          - Get mapping informations without any callback calls
-
+  - schemlib.mapping.is_equal_meta(data,data)       - Recursivelly compare data. Primary developed to check node metadata for changes
+  - schemlib.mapping.map_unknown(item_name)         - Internally used to map unknown nodes
+  - schemlib.mapping.map(node_name, plan)           - Get mapping informations without any callback calls
+  - schemlib.mapping.get_cost_item(node_name, plan) - Get cost item for specific node
 
 ## Plan Manager object
 The plan manager does manage the persistance for WIP plans. Also the manager allow to check overlaps to other buildings.
