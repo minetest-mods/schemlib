@@ -259,40 +259,43 @@ end
 
 
 function mapping.get_cost_item(node_name, plan)
-
+	-- get from mapping
 	local mapped = mapping.map(node_name, plan)
-	node_name = mapped.name or node_name
-
-	local cost_item
-	local node_def = minetest.registered_items[node_name]
-	if not node_def then
-		return
+	if mapped.cost_item then
+		return mapped.cost_item
 	end
 
 	-- Check if the node can be used byself
-	if not node_def.description or node_def.description == "" then
-		-- node is invalid item
-	elseif node_def.groups.not_in_creative_inventory == 1 then
-		local recipe = minetest.get_craft_recipe(node_name)
-		if recipe and recipe.items then
-			-- node is crafteable, can be provided as cost item
-			cost_item = node_name
+	node_name = mapped.name or node_name
+	local node_def = minetest.registered_items[node_name]
+	if not node_def then
+		-- unknown node
+		return
+	end
+
+	if node_def.description and node_def.description ~= ""  then
+		if node_def.groups.not_in_creative_inventory == 1 then
+			local recipe = minetest.get_craft_recipe(node_name)
+			if recipe and recipe.items then
+				-- node is crafteable, can be provided as cost item
+				return node_name
+			end
+		else
+			-- valid node, exists in creative inventory
+			return node_name
 		end
 	end
 
-	if not cost_item then
-		-- node cannot be used as cost item. Check for drops
-		local dropstack = minetest.get_node_drops(node_name)
-		if dropstack and dropstack[1] and dropstack[1] ~= "" then
-			cost_item = dropstack[1] -- use the first one
-		else
-			--something not supported, but known.
-			-- will be build for free. they are something like doors:hidden or second part of coffee lrfurn:coffeetable_back
-			cost_item = mapping.c_free_item
-		end
+
+	-- node cannot be used as cost item. Check for drops
+	local dropstack = minetest.get_node_drops(node_name)
+	if dropstack and dropstack[1] and dropstack[1] ~= "" then
+		return dropstack[1] -- use the first one
+	else
+		--something not supported, but known.
+		-- will be build for free. they are something like doors:hidden or second part of coffee lrfurn:coffeetable_back
+		return mapping.c_free_item
 	end
-	dprint("cost_item", cost_item, "for", node_name)
-	return cost_item
 end
 
 ------------------------------------------
