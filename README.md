@@ -6,7 +6,7 @@ The Mod is a consolidation of TownChest and handle_schematics at the time
 Current status: Hacking
 
 Reference implementations: WIP / nothing shiny
-  - The NPCF-Builder use some basics: https://github.com/stujones11/minetest-npcf/ 
+  - The NPCF-Builder use some basics: https://github.com/stujones11/minetest-npcf/
   - My NPCF-Builder (slightly other focus): https://github.com/bell07/minetest-schemlib_builder_npcf
 
 License: LGPLv2
@@ -45,7 +45,8 @@ Once drafting is complete and the anchor position is set, a plan can be placed i
 ### object methods
 #### Methods in draft mode (without anchor)
   - plan_obj:add_node(plan_pos, node)       - add a node to plan - if adjustment is given, the min/max and ground_y is calculated
-  - plan_obj:adjust_building_info(plan_pos, node) - adjust bilding size and ground information
+  - plan_obj:adjust_bound_pos(plan_pos)     - adjust bound min/max position information according to plan_pos
+  - plan_obj:adjust_building_info(plan_pos, node) - adjust building size and ground information
   - plan_obj:get_node(plan_pos)             - get a node from plan
   - plan_obj:del_node(plan_pos)             - delete a node from plan
   - plan_obj:get_random_plan_pos()          - get a random existing plan_pos from plan

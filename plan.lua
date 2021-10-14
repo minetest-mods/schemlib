@@ -47,6 +47,31 @@ function plan.new(plan_id , anchor_pos)
 end
 
 --------------------------------------
+-- Adjust bound min/max position information
+--------------------------------------
+function plan_class:adjust_bound_pos(plan_pos)
+	-- adjust min/max position information
+	if not self.data.max_pos.y or plan_pos.y > self.data.max_pos.y then
+		self.data.max_pos.y = plan_pos.y
+	end
+	if not self.data.min_pos.y or plan_pos.y < self.data.min_pos.y then
+		self.data.min_pos.y = plan_pos.y
+	end
+	if not self.data.max_pos.x or plan_pos.x > self.data.max_pos.x then
+		self.data.max_pos.x = plan_pos.x
+	end
+	if not self.data.min_pos.x or plan_pos.x < self.data.min_pos.x then
+		self.data.min_pos.x = plan_pos.x
+	end
+	if not self.data.max_pos.z or plan_pos.z > self.data.max_pos.z then
+		self.data.max_pos.z = plan_pos.z
+	end
+	if not self.data.min_pos.z or plan_pos.z < self.data.min_pos.z then
+		self.data.min_pos.z = plan_pos.z
+	end
+end
+
+--------------------------------------
 -- Add node to plan
 --------------------------------------
 function plan_class:add_node(plan_pos, node)
@@ -104,24 +129,7 @@ end
 --------------------------------------
 function plan_class:adjust_building_info(plan_pos, node)
 	-- adjust min/max position information
-	if not self.data.max_pos.y or plan_pos.y > self.data.max_pos.y then
-		self.data.max_pos.y = plan_pos.y
-	end
-	if not self.data.min_pos.y or plan_pos.y < self.data.min_pos.y then
-		self.data.min_pos.y = plan_pos.y
-	end
-	if not self.data.max_pos.x or plan_pos.x > self.data.max_pos.x then
-		self.data.max_pos.x = plan_pos.x
-	end
-	if not self.data.min_pos.x or plan_pos.x < self.data.min_pos.x then
-		self.data.min_pos.x = plan_pos.x
-	end
-	if not self.data.max_pos.z or plan_pos.z > self.data.max_pos.z then
-		self.data.max_pos.z = plan_pos.z
-	end
-	if not self.data.min_pos.z or plan_pos.z < self.data.min_pos.z then
-		self.data.min_pos.z = plan_pos.z
-	end
+	self:adjust_bound_pos(plan_pos)
 
 	if string.sub(node.name, 1, 18) == "default:dirt_with_" or
 			node.name == "farming:soil_wet" then
@@ -222,7 +230,7 @@ function plan_class:read_from_schem_file(filename, replacements)
 	local mts_format = string.find(filename, '.mts',  -4)
 
 	local readingMode = 'r'
-	if mts_format then 
+	if mts_format then
 		-- Minetest Schematics are a packed binary file format
 		readingMode = 'rb'
 	end
