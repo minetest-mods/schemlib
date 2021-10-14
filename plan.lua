@@ -232,15 +232,15 @@ end
 --------------------------------------
 -- add MTS Object to nodes at optional position(defaults to {x=0,y=0,z=0})
 --------------------------------------
-function plan_class:add_mts_obj(mts, plan_os, replacements)
+function plan_class:add_mts_obj(mts, plan_pos, replacements)
 	local size = mts.size
 	local size_x = size.x
 	local size_y = size.y
 	local size_z = size.z
-	if type(plan_os) ~= "table" then plan_os = {} end
-	local ox = plan_os['x'] or 0
-	local oy = plan_os['y'] or 0
-	local oz = plan_os['z'] or 0
+	if type(plan_pos) ~= "table" then plan_pos = {} end
+	local ox = plan_pos['x'] or 0
+	local oy = plan_pos['y'] or 0
+	local oz = plan_pos['z'] or 0
 
 	-- read node names
 	local node_name_count = mts.node_name_count
