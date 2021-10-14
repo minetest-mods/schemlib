@@ -129,11 +129,7 @@ end
 --------------------------------------
 function plan_class:adjust_building_info(plan_pos, node)
 	-- adjust min/max position information
-  self:adjust_bound_pos(plan_pos)
-
-  if not self.data.min_pos.z or plan_pos.z < self.data.min_pos.z then
-		self.data.min_pos.z = plan_pos.z
-	end
+	self:adjust_bound_pos(plan_pos)
 
 	if string.sub(node.name, 1, 18) == "default:dirt_with_" or
 			node.name == "farming:soil_wet" then
@@ -234,7 +230,7 @@ function plan_class:read_from_schem_file(filename, replacements)
 	local mts_format = string.find(filename, '.mts',  -4)
 
 	local readingMode = 'r'
-	if mts_format then 
+	if mts_format then
 		-- Minetest Schematics are a packed binary file format
 		readingMode = 'rb'
 	end
