@@ -45,7 +45,11 @@ Once drafting is complete and the anchor position is set, a plan can be placed i
 ### object methods
 #### Methods in draft mode (without anchor)
   - plan_obj:add_node(plan_pos, node)       - add a node to plan - if adjustment is given, the min/max and ground_y is calculated
-  - plan_obj:adjust_bound_pos(plan_pos)     - adjust bound min/max position information according to plan_pos
+  - plan_obj:add_mts_obj(mts, plan_pos, replacements) - add MTS Object to nodes at optional position(defaults to `{x=0,y=0,z=0}`)
+  - plan_obj:add_we_obj(we, plan_pos, replacements)   - add WorldEdit Object to nodes at optional position(defaults to `{x=0,y=0,z=0}`)
+  - plan_obj:get_from_mts_file(filename)          - return MTS Data Object from Minetest Schematic file
+  - plan_obj:get_from_we_file(filename)           - return WorldEdit Data Object from Minetest WorldEdit Schematic file
+  - plan_obj:adjust_bound_pos(plan_pos)           - adjust bound min/max position information according to plan_pos
   - plan_obj:adjust_building_info(plan_pos, node) - adjust building size and ground information
   - plan_obj:get_node(plan_pos)             - get a node from plan
   - plan_obj:del_node(plan_pos)             - delete a node from plan

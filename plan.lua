@@ -221,100 +221,174 @@ function plan_class:get_random_plan_pos()
 	end
 end
 
---------------------------------------
--- Generate a plan from schematics file
---------------------------------------
--- replacements parameter is optional, and only used by .mts files.
-function plan_class:read_from_schem_file(filename, replacements)
 
-	local mts_format = string.find(filename, '.mts',  -4)
+--------------------------------------
+-- return file extension name or nil from filename
+--------------------------------------
+local function get_ext_name(filename)
+	return string.match(filename, '^.+(%..+)$')
+end
 
-	local readingMode = 'r'
-	if mts_format then
-		-- Minetest Schematics are a packed binary file format
-		readingMode = 'rb'
+--------------------------------------
+-- add MTS Object to nodes at optional position(defaults to {x=0,y=0,z=0})
+--------------------------------------
+function plan_class:add_mts_obj(mts, plan_pos, replacements)
+	local size = mts.size
+	local size_x = size.x
+	local size_y = size.y
+	local size_z = size.z
+	plan_pos = plan_pos or {x = 0, y = 0, z = 0}
+	local ox = plan_pos['x']
+	local oy = plan_pos['y']
+	local oz = plan_pos['z']
+
+	-- read node names
+	local node_name_count = mts.node_name_count
+	local node_names = mts.node_names
+	local air_id = 0;
+	for i = 1, node_name_count do
+		local name_text   = node_names[i]
+		if replacements and replacements[name_text] then
+			name_text = replacements[name_text]
+			node_names[i] = name_text
+		end
+		if name_text == "air" then
+			air_id = i
+		end
 	end
 
-	local file = io.open( filename, readingMode )
+	local compressed_data = mts.data
+	local data_string = minetest.decompress(compressed_data, "deflate" );
+
+	local i = 1
+	local p2offset = (size_x*size_y*size_z)*3
+	for z = 1, size_z do
+		for y = 1, size_y do
+			for x = 1, size_x do
+				local id = string.byte(data_string, i) * 256 + string.byte(data_string, i+1)
+				i = i + 2
+				local p2 = string.byte(data_string, p2offset + math.floor(i/2))
+				id = id + 1
+				if id ~= air_id then
+					local npos = {x = x+ox, y = y+oy, z = z+oz}
+					local ent = {name = node_names[id], param2 = p2}
+					self:add_node(npos, ent)
+					self:adjust_building_info(npos, ent)
+				end
+			end
+		end
+	end
+end
+
+
+--------------------------------------
+-- add WorldEdit Object to nodes at optional position(defaults to {x=0,y=0,z=0})
+--------------------------------------
+function plan_class:add_we_obj(we, plan_pos, replacements)
+  plan_pos = plan_pos or {x = 0, y = 0, z = 0}
+	local ox = plan_pos['x']
+	local oy = plan_pos['y']
+	local oz = plan_pos['z']
+	local nodes = we.data
+
+	for _, ent in ipairs( nodes ) do
+		local npos = {x=ent.x+ox, y=ent.y+oy, z=ent.z+oz}
+		if replacements and replacements[ent.name] then
+			ent.name = replacements[ent.name]
+		end
+		self:add_node(npos, ent)
+		self:adjust_building_info(npos, ent)
+	end
+end
+
+--------------------------------------
+-- return MTS Data from Minetest Schematic file
+--------------------------------------
+function plan_class:get_from_mts_file(filename)
+	local ext = get_ext_name(filename)
+	if ext == nil then filename = filename .. '.mts' end
+
+	local file = io.open( filename, 'rb' )
 	if not file then
 		dprint("error: could not open file \"" .. filename .. "\"")
 		return
 	end
+	-- thanks to sfan5 for this advanced code that reads the size from schematic files
+	local function read_s16(fi)
+		return string.byte(fi:read(1)) * 256 + string.byte(fi:read(1))
+	end
+
+	-- make sure those are the first 4 characters, otherwise this might be a corrupt file
+	if file:read(4) ~= "MTSM" then
+		file:close()
+		return
+	end
+	local result = {type="mts"}
+	-- advance 2 more characters
+	local version = read_s16(file) --f:read(2)
+	result["version"] = version
+		-- the next characters here are our size, read them
+	local size_x = read_s16(file)
+	local size_y = read_s16(file)
+	local size_z = read_s16(file)
+	result["size"] = {x=size_x, y=size_y, z=size_z}
+	-- read the slice probability for each y value that was introduced in version 3
+	if version >= 3 then
+		--TODO: Read probability
+		result["probability"] = file:read(size_y)
+	end
+
+	-- read node names
+	local node_name_count = read_s16(file)
+	local node_names = {}
+	for _ = 1, node_name_count do
+		local name_length = read_s16(file)
+		local name_text   = file:read(name_length)
+		table.insert(node_names, name_text)
+	end
+	result["node_name_count"] = node_name_count
+	result["node_names"] = node_names
+	result["data"] = file:read( "*all" );
+	file:close()
+	return result
+end
+
+--------------------------------------
+-- return WE Data from Minetest WorldEdit Schematic file
+--------------------------------------
+function plan_class:get_from_we_file(filename)
+	local ext = get_ext_name(filename) -- .we or .wem
+	if ext == nil then filename = filename .. '.we' end
+
+	local file = io.open( filename, 'r' )
+	if not file then
+		dprint("error: could not open file \"" .. filename .. "\"")
+		return
+	end
+	local result = {type = "we", data = schemlib.worldedit_file.load_schematic(file:read("*a"))}
+	file:close()
+	return result
+end
+
+--------------------------------------
+-- Generate a plan from schematics file
+--------------------------------------
+-- replacements parameter is optional.
+function plan_class:read_from_schem_file(filename, replacements)
+
+	local mts_format = string.find(filename, '.mts',  -4)
 
 	-- Minetest Schematics
 	if mts_format then
-		-- thanks to sfan5 for this advanced code that reads the size from schematic files
-		local function read_s16(fi)
-			return string.byte(fi:read(1)) * 256 + string.byte(fi:read(1))
-		end
-
-		-- make sure those are the first 4 characters, otherwise this might be a corrupt file
-		if file:read(4) ~= "MTSM" then
-			return
-		end
-		-- advance 2 more characters
-		local version = read_s16(file) --f:read(2)
-			-- the next characters here are our size, read them
-		local size_x = read_s16(file)
-		local size_y = read_s16(file)
-		local size_z = read_s16(file)
-		-- read the slice probability for each y value that was introduced in version 3
-		if version >= 3 then
-			--TODO: Read probability
-			file:read(size_y)
-		end
-
-		-- read node names
-		local node_name_count = read_s16(file)
-		local node_names = {}
-		local air_id = 0;
-		for i = 1, node_name_count do
-			local name_length = read_s16(file)
-			local name_text   = file:read(name_length)
-			if replacements and replacements[name_text] then
-				name_text = replacements[name_text]
-			end
-			table.insert(node_names, name_text)
-			if name_text == "air" then
-				air_id = i
-			end
-		end
-
-		local compressed_data = file:read( "*all" );
-		local data_string = minetest.decompress(compressed_data, "deflate" );
-
-		local i = 1
-		local p2offset = (size_x*size_y*size_z)*3
-		for z = 1, size_z do
-			for y = 1, size_y do
-				for x = 1, size_x do
-					local id = string.byte(data_string, i) * 256 + string.byte(data_string, i+1)
-					i = i + 2
-					local p2 = string.byte(data_string, p2offset + math.floor(i/2))
-					id = id + 1
-					if id ~= air_id then
-						local pos = {x = x, y = y, z = z}
-						local ent = {name = node_names[id], param2 = p2}
-						self:add_node(pos, ent)
-						self:adjust_building_info(pos, ent)
-					end
-				end
-			end
-		end
+		local mts = self:get_from_mts_file(filename)
+		if mts == nil then return end
+		self:add_mts_obj(mts, nil, replacements)
 	-- WorldEdit files
 	elseif string.find(filename, '.we',   -3) or string.find(filename, '.wem',  -4) then
-		local nodes = schemlib.worldedit_file.load_schematic(file:read("*a"))
-		-- analyze the file
-		for i, ent in ipairs( nodes ) do
-			local pos = {x=ent.x, y=ent.y, z=ent.z}
-			if replacements and replacements[ent.name] then
-				ent.name = replacements[ent.name]
-			end
-			self:add_node(pos, ent)
-			self:adjust_building_info(pos, ent)
-		end
+		local we = self:get_from_we_file(filename)
+		if we == nil then return end
+		self:add_we_obj(we, nil, replacements)
 	end
-	file.close(file)
 end
 
 --------------------------------------
